@@ -1,5 +1,5 @@
 import type { ClientId, RoomId } from "./inMemoryTransport.js";
-import type { ZeusSocketMessage } from "./webSocketRoomServer.js";
+import { parseZeusSocketMessage, stringifyZeusSocketMessage, type ZeusSocketMessage } from "./webSocketProtocol.js";
 
 export type ZeusWebSocketRoomClientOptions = {
   url: string | URL;
@@ -31,7 +31,7 @@ export class ZeusWebSocketRoomClient<TIntent, TSnapshot> {
         if (!this.latest) reject(new Error(`WebSocket room connection closed before joining '${this.roomId}'`));
       };
       this.socket.addEventListener("message", (event) => {
-        const message = JSON.parse(String(event.data)) as ZeusSocketMessage<TIntent, TSnapshot>;
+        const message = parseZeusSocketMessage<TIntent, TSnapshot>(String(event.data));
         if (message.type === "join") {
           this.latest = structuredClone(message.snapshot);
           resolve({ roomId: message.roomId, clientId: message.clientId, snapshot: this.snapshot() });
@@ -50,7 +50,7 @@ export class ZeusWebSocketRoomClient<TIntent, TSnapshot> {
 
   sendIntent(intent: TIntent) {
     if (this.socket.readyState !== WebSocket.OPEN) return false;
-    this.socket.send(JSON.stringify({ type: "intent", intent } satisfies ZeusSocketMessage<TIntent, TSnapshot>));
+    this.socket.send(stringifyZeusSocketMessage({ type: "intent", intent } satisfies ZeusSocketMessage<TIntent, TSnapshot>));
     return true;
   }
 

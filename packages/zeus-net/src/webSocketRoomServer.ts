@@ -3,12 +3,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
 import type { AuthoritativeRoom, ClientId, RoomId } from "./inMemoryTransport.js";
-
-export type ZeusSocketMessage<TIntent, TSnapshot> =
-  | { type: "join"; roomId: RoomId; clientId: ClientId; snapshot: TSnapshot }
-  | { type: "snapshot"; roomId: RoomId; snapshot: TSnapshot }
-  | { type: "intent"; intent: TIntent }
-  | { type: "error"; message: string };
+import { parseZeusSocketMessage, stringifyZeusSocketMessage, type ZeusSocketMessage } from "./webSocketProtocol.js";
 
 type SocketClient = {
   socket: Duplex;
@@ -73,7 +68,13 @@ export class ZeusWebSocketRoomServer<TIntent, TSnapshot> {
     if (!this.room) return;
     const text = decodeTextFrame(data);
     if (!text) return;
-    const message = JSON.parse(text) as ZeusSocketMessage<TIntent, TSnapshot>;
+    let message: ZeusSocketMessage<TIntent, TSnapshot>;
+    try {
+      message = parseZeusSocketMessage<TIntent, TSnapshot>(text);
+    } catch (error) {
+      this.send(client, { type: "error", message: error instanceof Error ? error.message : "Invalid socket message" });
+      return;
+    }
     if (message.type === "intent") {
       this.room.room.receiveIntent(client.clientId, message.intent);
     }
@@ -84,7 +85,7 @@ export class ZeusWebSocketRoomServer<TIntent, TSnapshot> {
   }
 
   private send(client: SocketClient, message: ZeusSocketMessage<TIntent, TSnapshot>) {
-    client.socket.write(encodeTextFrame(JSON.stringify(message)));
+    client.socket.write(encodeTextFrame(stringifyZeusSocketMessage(message)));
   }
 }
 
