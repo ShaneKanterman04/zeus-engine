@@ -32,6 +32,7 @@ export class ZeusPixiRenderer {
   readonly layers = new Map<ZeusPixiLayerName, Container>();
   private readonly atlasTextures = new Map<string, Texture>();
   private readonly frameTextures = new Map<string, Texture>();
+  private readonly spritePools = new Map<ZeusPixiLayerName, Sprite[]>();
   camera: Vec2 = { x: 0, y: 0 };
   qualityMode: "standard" | "low" = "standard";
 
@@ -64,7 +65,20 @@ export class ZeusPixiRenderer {
   }
 
   clearLayer(name: ZeusPixiLayerName) {
-    this.layers.get(name)?.removeChildren();
+    const layer = this.layers.get(name);
+    if (!layer) return;
+    const removed = layer.removeChildren();
+    let pool = this.spritePools.get(name);
+    if (!pool) {
+      pool = [];
+      this.spritePools.set(name, pool);
+    }
+    for (const child of removed) {
+      if (child instanceof Sprite) {
+        child.visible = false;
+        pool.push(child);
+      }
+    }
   }
 
   addGraphic(name: ZeusPixiLayerName, graphic: Graphics) {
@@ -76,13 +90,15 @@ export class ZeusPixiRenderer {
   }
 
   addSprite(name: ZeusPixiLayerName, frame: AtlasFrame, position: Vec2, tint = "#ffffff") {
-    const sprite = new Sprite(this.textureForFrame(frame));
+    const sprite = this.acquireSprite(name);
+    sprite.texture = this.textureForFrame(frame);
     sprite.label = frame.id;
     sprite.tint = tint;
     sprite.width = frame.width;
     sprite.height = frame.height;
     sprite.anchor.set(0.5);
     sprite.position.set(position.x, position.y);
+    sprite.visible = true;
     this.layers.get(name)?.addChild(sprite);
     return sprite;
   }
@@ -112,6 +128,11 @@ export class ZeusPixiRenderer {
     });
     this.frameTextures.set(frame.id, texture);
     return texture;
+  }
+
+  private acquireSprite(name: ZeusPixiLayerName) {
+    const sprite = this.spritePools.get(name)?.pop();
+    return sprite ?? new Sprite(Texture.WHITE);
   }
 
   resizeToWindow(width = 1280, height = 720) {
