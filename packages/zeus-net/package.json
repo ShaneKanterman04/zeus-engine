@@ -1,0 +1,9 @@
+{
+  "name": "@zeus/net",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./web-socket-room-server": "./src/webSocketRoomServer.ts"
+  }
+}

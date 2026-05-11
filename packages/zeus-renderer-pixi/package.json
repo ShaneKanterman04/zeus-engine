@@ -1,0 +1,11 @@
+{
+  "name": "@zeus/renderer-pixi",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "pixi.js": "^8.18.1"
+  }
+}
