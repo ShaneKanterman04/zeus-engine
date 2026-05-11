@@ -1,6 +1,15 @@
 export { ZeusApp } from "./ZeusApp.js";
 export type { ZeusAppOptions, ZeusRenderableScene } from "./ZeusApp.js";
-export { ZeusWorld, clamp, distance, moveToward } from "./world.js";
+export {
+  ZeusWorld,
+  clamp,
+  distance,
+  distanceToPolyline,
+  distanceToSegment,
+  moveToward,
+  polylineLength,
+  samplePolyline,
+} from "./world.js";
 export { FixedStepLoop } from "./simulation/FixedStepLoop.js";
 export { SystemRunner } from "./simulation/SystemRunner.js";
 export { SceneManager } from "./scenes/SceneManager.js";
