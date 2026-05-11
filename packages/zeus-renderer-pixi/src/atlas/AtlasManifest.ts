@@ -7,6 +7,7 @@ export type AtlasFrame = {
   y: number;
   width: number;
   height: number;
+  anchor?: { x: number; y: number };
 };
 
 export type AtlasManifest = {
@@ -46,6 +47,9 @@ export function validateAtlasManifest(manifest: AtlasManifest, assets: AssetMani
     }
     if (frame.x < 0 || frame.y < 0 || frame.width <= 0 || frame.height <= 0) {
       errors.push(`Atlas frame '${frame.id}' has invalid rectangle`);
+    }
+    if (frame.anchor && (frame.anchor.x < 0 || frame.anchor.x > 1 || frame.anchor.y < 0 || frame.anchor.y > 1)) {
+      errors.push(`Atlas frame '${frame.id}' has invalid anchor`);
     }
   }
   return errors;

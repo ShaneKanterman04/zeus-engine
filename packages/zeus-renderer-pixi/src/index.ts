@@ -96,7 +96,7 @@ export class ZeusPixiRenderer {
     sprite.tint = tint;
     sprite.width = frame.width;
     sprite.height = frame.height;
-    sprite.anchor.set(0.5);
+    sprite.anchor.set(frame.anchor?.x ?? 0.5, frame.anchor?.y ?? 0.5);
     sprite.position.set(position.x, position.y);
     sprite.visible = true;
     this.layers.get(name)?.addChild(sprite);
