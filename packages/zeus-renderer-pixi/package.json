@@ -5,6 +5,10 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "dependencies": {
+    "@zeus/assets": "file:../zeus-assets",
+    "@zeus/core": "file:../zeus-core"
+  },
   "peerDependencies": {
     "pixi.js": "^8.18.1"
   }

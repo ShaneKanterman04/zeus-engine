@@ -1,4 +1,4 @@
-import type { AssetManifestRegistry } from "../../../zeus-assets/src";
+import type { AssetManifestRegistry } from "@zeus/assets";
 
 export type AtlasFrame = {
   id: string;

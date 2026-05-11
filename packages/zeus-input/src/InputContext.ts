@@ -1,4 +1,4 @@
-import type { InputState, Vec2 } from "../../zeus-core/src";
+import type { InputState, Vec2 } from "@zeus/core";
 
 export type InputLayer = "gameplay" | "ui" | "debug";
 

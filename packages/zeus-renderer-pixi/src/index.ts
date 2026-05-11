@@ -1,6 +1,6 @@
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Texture } from "pixi.js";
-import type { Entity, Vec2 } from "../../zeus-core/src";
-import type { AssetManifestRegistry } from "../../zeus-assets/src";
+import type { Entity, Vec2 } from "@zeus/core";
+import type { AssetManifestRegistry } from "@zeus/assets";
 import type { AtlasFrame } from "./atlas/AtlasManifest";
 
 export type ZeusPixiLayerName =
