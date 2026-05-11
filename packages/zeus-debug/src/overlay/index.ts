@@ -1,2 +1,2 @@
-export { formatFpsOverlay } from "./FpsOverlay";
-export type { FpsOverlayState } from "./FpsOverlay";
+export { formatFpsOverlay } from "./FpsOverlay.js";
+export type { FpsOverlayState } from "./FpsOverlay.js";

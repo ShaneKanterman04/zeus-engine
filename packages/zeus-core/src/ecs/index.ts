@@ -1,2 +1,2 @@
-export { ComponentStore } from "./ComponentStore";
-export type { ComponentMap } from "./ComponentStore";
+export { ComponentStore } from "./ComponentStore.js";
+export type { ComponentMap } from "./ComponentStore.js";

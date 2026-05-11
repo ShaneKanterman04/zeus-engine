@@ -1,4 +1,4 @@
-import { FixedStepLoop } from "./simulation/FixedStepLoop";
+import { FixedStepLoop } from "./simulation/FixedStepLoop.js";
 
 export type ZeusRenderableScene = {
   update(dt: number): void;

@@ -1,3 +1,3 @@
-export { FileHotReloader } from "./FileHotReloader";
-export { LastValidContent } from "./LastValidContent";
-export type { ValidationResult } from "./LastValidContent";
+export { FileHotReloader } from "./FileHotReloader.js";
+export { LastValidContent } from "./LastValidContent.js";
+export type { ValidationResult } from "./LastValidContent.js";

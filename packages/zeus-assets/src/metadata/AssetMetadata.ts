@@ -1,4 +1,4 @@
-import type { AssetManifestRegistry } from "../AssetManifest";
+import type { AssetManifestRegistry } from "../AssetManifest.js";
 
 export type AssetReviewStatus = "approved" | "needs-review" | "rejected";
 export type AssetProvenance = "generated" | "authored" | "external";

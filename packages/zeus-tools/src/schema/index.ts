@@ -1,2 +1,2 @@
-export { validateContentSchema } from "./ContentSchema";
-export type { ContentFieldRule, ContentSchema, FieldType } from "./ContentSchema";
+export { validateContentSchema } from "./ContentSchema.js";
+export type { ContentFieldRule, ContentSchema, FieldType } from "./ContentSchema.js";

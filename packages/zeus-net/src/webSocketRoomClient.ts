@@ -1,5 +1,5 @@
-import type { ClientId, RoomId } from "./inMemoryTransport";
-import type { ZeusSocketMessage } from "./webSocketRoomServer";
+import type { ClientId, RoomId } from "./inMemoryTransport.js";
+import type { ZeusSocketMessage } from "./webSocketRoomServer.js";
 
 export type ZeusWebSocketRoomClientOptions = {
   url: string | URL;

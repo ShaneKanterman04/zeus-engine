@@ -1,6 +1,6 @@
 import { watch, type FSWatcher } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { LastValidContent, type ValidationResult } from "./LastValidContent";
+import { LastValidContent, type ValidationResult } from "./LastValidContent.js";
 
 export class FileHotReloader<T> {
   private watcher?: FSWatcher;

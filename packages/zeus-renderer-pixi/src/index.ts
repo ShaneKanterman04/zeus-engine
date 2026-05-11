@@ -1,7 +1,7 @@
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Texture } from "pixi.js";
 import type { Entity, Vec2 } from "@zeus/core";
 import type { AssetManifestRegistry } from "@zeus/assets";
-import type { AtlasFrame } from "./atlas/AtlasManifest";
+import type { AtlasFrame } from "./atlas/AtlasManifest.js";
 
 export type ZeusPixiLayerName =
   | "ground"
@@ -126,5 +126,5 @@ export class ZeusPixiRenderer {
   }
 }
 
-export { AtlasFrameRegistry, validateAtlasManifest } from "./atlas/AtlasManifest";
-export type { AtlasFrame, AtlasManifest } from "./atlas/AtlasManifest";
+export { AtlasFrameRegistry, validateAtlasManifest } from "./atlas/AtlasManifest.js";
+export type { AtlasFrame, AtlasManifest } from "./atlas/AtlasManifest.js";

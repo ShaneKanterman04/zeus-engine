@@ -1,3 +1,3 @@
-export { ZeusInput } from "./ZeusInput";
-export { InputContext, defaultBindings } from "./InputContext";
-export type { InputBindings, InputLayer } from "./InputContext";
+export { ZeusInput } from "./ZeusInput.js";
+export { InputContext, defaultBindings } from "./InputContext.js";
+export type { InputBindings, InputLayer } from "./InputContext.js";

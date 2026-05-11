@@ -1,9 +1,9 @@
-export { InMemoryRoomHost } from "./rooms/InMemoryRoomHost";
-export { InMemoryRoomClient } from "./rooms/InMemoryRoomClient";
-export type { ZeusRoomHandler, ZeusRoomSnapshot } from "./rooms/InMemoryRoomHost";
-export { InMemoryRoomTransport } from "./inMemoryTransport";
-export { ZeusWebSocketRoomClient } from "./webSocketRoomClient";
-export type { ZeusWebSocketRoomClientOptions, ZeusWebSocketRoomJoin } from "./webSocketRoomClient";
+export { InMemoryRoomHost } from "./rooms/InMemoryRoomHost.js";
+export { InMemoryRoomClient } from "./rooms/InMemoryRoomClient.js";
+export type { ZeusRoomHandler, ZeusRoomSnapshot } from "./rooms/InMemoryRoomHost.js";
+export { InMemoryRoomTransport } from "./inMemoryTransport.js";
+export { ZeusWebSocketRoomClient } from "./webSocketRoomClient.js";
+export type { ZeusWebSocketRoomClientOptions, ZeusWebSocketRoomJoin } from "./webSocketRoomClient.js";
 export type {
   AuthoritativeRoom,
   ClientId,
@@ -11,4 +11,4 @@ export type {
   RoomId,
   RoomJoinResult,
   RoomTransport,
-} from "./inMemoryTransport";
+} from "./inMemoryTransport.js";

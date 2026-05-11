@@ -24,12 +24,15 @@ Verify engine changes with:
 
 ```bash
 cd /home/shane/zeus-engine
+npm run build
+npm run check:exports
 npm run typecheck
 ```
 
 When changing engine behavior for a game feature, also verify the game:
 
 ```bash
+cd /home/shane/zeus-engine && npm run build
 cd /home/shane/last-hearth-game
 npm run verify
 ```

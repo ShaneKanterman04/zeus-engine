@@ -1,4 +1,4 @@
-import type { InMemoryRoomHost, ZeusRoomSnapshot } from "./InMemoryRoomHost";
+import type { InMemoryRoomHost, ZeusRoomSnapshot } from "./InMemoryRoomHost.js";
 
 export class InMemoryRoomClient<TIntent, TState> {
   private joined = false;

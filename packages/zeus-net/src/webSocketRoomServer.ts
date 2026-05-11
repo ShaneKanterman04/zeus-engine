@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
-import type { AuthoritativeRoom, ClientId, RoomId } from "./inMemoryTransport";
+import type { AuthoritativeRoom, ClientId, RoomId } from "./inMemoryTransport.js";
 
 export type ZeusSocketMessage<TIntent, TSnapshot> =
   | { type: "join"; roomId: RoomId; clientId: ClientId; snapshot: TSnapshot }

@@ -2,9 +2,20 @@
   "name": "@zeus/net",
   "version": "0.1.0",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./web-socket-room-client": "./src/webSocketRoomClient.ts",
-    "./web-socket-room-server": "./src/webSocketRoomServer.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./web-socket-room-client": {
+      "types": "./dist/webSocketRoomClient.d.ts",
+      "import": "./dist/webSocketRoomClient.js"
+    },
+    "./web-socket-room-server": {
+      "types": "./dist/webSocketRoomServer.d.ts",
+      "import": "./dist/webSocketRoomServer.js"
+    }
   }
 }

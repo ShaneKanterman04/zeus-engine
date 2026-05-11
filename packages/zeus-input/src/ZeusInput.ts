@@ -1,4 +1,4 @@
-import { InputContext, type InputLayer } from "./InputContext";
+import { InputContext, type InputLayer } from "./InputContext.js";
 
 export class ZeusInput {
   readonly context = new InputContext();

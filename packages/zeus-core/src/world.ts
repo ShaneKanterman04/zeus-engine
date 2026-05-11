@@ -1,5 +1,5 @@
-import type { Entity, EntityId, Vec2, ZeusSystem } from "./types";
-import { SystemRunner } from "./simulation/SystemRunner";
+import type { Entity, EntityId, Vec2, ZeusSystem } from "./types.js";
+import { SystemRunner } from "./simulation/SystemRunner.js";
 
 export class ZeusWorld<TState extends { entities: Entity[] }> {
   private readonly runner = new SystemRunner<TState>();

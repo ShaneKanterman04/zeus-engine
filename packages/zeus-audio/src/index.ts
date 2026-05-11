@@ -1,2 +1,2 @@
-export { ZeusAudioService } from "./AudioService";
-export type { ZeusAudioBus } from "./AudioService";
+export { ZeusAudioService } from "./AudioService.js";
+export type { ZeusAudioBus } from "./AudioService.js";

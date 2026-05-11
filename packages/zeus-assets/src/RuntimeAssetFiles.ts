@@ -1,4 +1,4 @@
-import type { ZeusAssetEntry } from "./AssetManifest";
+import type { ZeusAssetEntry } from "./AssetManifest.js";
 
 export function runtimeAssetPath(asset: ZeusAssetEntry, runtimeRoot = "assets_game") {
   return asset.src.replace(/^\/assets/, runtimeRoot);
