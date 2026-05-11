@@ -45,8 +45,8 @@ export class ZeusWebSocketRoomServer<TIntent, TSnapshot> {
     this.room = { roomId, room };
   }
 
-  async listen(port = 0) {
-    await new Promise<void>((resolve) => this.server.listen(port, "127.0.0.1", resolve));
+  async listen(port = 0, host = "127.0.0.1") {
+    await new Promise<void>((resolve) => this.server.listen(port, host, resolve));
     return this.port;
   }
 

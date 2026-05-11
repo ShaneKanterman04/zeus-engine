@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./web-socket-room-client": "./src/webSocketRoomClient.ts",
     "./web-socket-room-server": "./src/webSocketRoomServer.ts"
   }
 }

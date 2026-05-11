@@ -18,6 +18,8 @@ games/last-hearth
 
 Put reusable behavior here: core loop, scene management, ECS/component primitives, rendering helpers, input, audio, assets, networking, debug tools, and validation/hot reload tooling.
 
+Networking primitives such as WebSocket room clients, room servers, protocol types, and LAN binding options belong in `packages/zeus-net`. Game repos should consume them through package-name imports such as `@zeus/net`.
+
 Verify engine changes with:
 
 ```bash
@@ -31,4 +33,3 @@ When changing engine behavior for a game feature, also verify the game:
 cd /home/shane/last-hearth-game
 npm run verify
 ```
-
