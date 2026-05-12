@@ -7,3 +7,18 @@ export { createSpriteContactSheet, packSpriteAtlas, validateSpritePack, writeSpr
 export type { SpritePackConfig, SpritePackFrameConfig, SpritePackFrameResult, SpritePackResult } from "./sprites/SpriteAtlasPacker.js";
 export { importChromaKeySpriteSheet, validateSpriteSheetImport } from "./sprites/SpriteSheetImporter.js";
 export type { SpriteSheetCell, SpriteSheetImportConfig, SpriteSheetImportResult } from "./sprites/SpriteSheetImporter.js";
+export {
+  createPixelCanvas,
+  drawDeterministicSpeckles,
+  drawEllipse,
+  drawLine,
+  drawPolygon,
+  drawRasterLine,
+  drawRect,
+  drawTriangle,
+  fillPixelCanvas,
+  pixelCanvasToPngBuffer,
+  setPixel,
+  writePixelCanvasPng,
+} from "./sprites/PixelCanvas.js";
+export type { PixelCanvas, PixelPoint, RgbaColor } from "./sprites/PixelCanvas.js";
