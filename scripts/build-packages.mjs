@@ -1,4 +1,4 @@
-import { rm, writeFile, unlink } from "node:fs/promises";
+import { chmod, readFile, rm, writeFile, unlink } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 
@@ -41,8 +41,17 @@ for (const packageName of packages) {
   );
   try {
     await runTsc(configPath);
+    await chmodPackageBins(packageDir);
   } finally {
     await unlink(configPath).catch(() => undefined);
+  }
+}
+
+async function chmodPackageBins(packageDir) {
+  const packageJson = JSON.parse(await readFile(join(packageDir, "package.json"), "utf8"));
+  const bins = typeof packageJson.bin === "string" ? [packageJson.bin] : Object.values(packageJson.bin ?? {});
+  for (const binPath of bins) {
+    await chmod(join(packageDir, binPath), 0o755).catch(() => undefined);
   }
 }
 

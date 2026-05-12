@@ -1,4 +1,5 @@
 export { runValidateCli } from "./cli/validate.js";
+export { runZeusToolsCli } from "./cli/zeus-tools.js";
 export { LastValidContent } from "./hot-reload/index.js";
 export type { ValidationResult } from "./hot-reload/index.js";
 export { validateContentSchema } from "./schema/index.js";
