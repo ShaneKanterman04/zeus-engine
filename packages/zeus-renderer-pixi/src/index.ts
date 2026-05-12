@@ -149,5 +149,7 @@ export class ZeusPixiRenderer {
 
 export { AtlasFrameRegistry, validateAtlasManifest } from "./atlas/AtlasManifest.js";
 export type { AtlasFrame, AtlasManifest } from "./atlas/AtlasManifest.js";
+export { createPixiLightingGraphics } from "./lighting/PixiLighting.js";
+export type { PixiLightingOptions } from "./lighting/PixiLighting.js";
 export { createPixiCreekGraphics } from "./waterways/CreekPainter.js";
 export type { PixiCreekStyle, PixiWaterway } from "./waterways/CreekPainter.js";
