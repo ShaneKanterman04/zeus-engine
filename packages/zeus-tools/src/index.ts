@@ -1,5 +1,4 @@
 export { runValidateCli } from "./cli/validate.js";
-export { runZeusToolsCli } from "./cli/zeus-tools.js";
 export { LastValidContent } from "./hot-reload/index.js";
 export type { ValidationResult } from "./hot-reload/index.js";
 export { validateContentSchema } from "./schema/index.js";
@@ -39,3 +38,15 @@ export type {
   PixelSpriteTemplateRegistry,
 } from "./sprites/PixelSpriteGenerator.js";
 export { builtinPixelSpriteTemplates, defaultPixelSpritePalette } from "./sprites/PixelSpriteTemplates.js";
+export {
+  deterministicRange,
+  drawBarkLines,
+  drawGroundShadow,
+  drawInsetRect,
+  drawPixelCluster,
+  drawPixelNoise,
+  mixColor,
+  shadeColor,
+  spriteHash,
+} from "./sprites/PixelDetail.js";
+export type { PixelBounds } from "./sprites/PixelDetail.js";
