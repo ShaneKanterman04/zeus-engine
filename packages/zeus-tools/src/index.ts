@@ -22,3 +22,19 @@ export {
   writePixelCanvasPng,
 } from "./sprites/PixelCanvas.js";
 export type { PixelCanvas, PixelPoint, RgbaColor } from "./sprites/PixelCanvas.js";
+export {
+  generatePixelSprites,
+  renderPixelSprite,
+  validatePixelSpriteFrame,
+  validatePixelSpriteGeneratorConfig,
+} from "./sprites/PixelSpriteGenerator.js";
+export type {
+  GeneratedPixelSprite,
+  PixelSpriteFrameConfig,
+  PixelSpriteGeneratorConfig,
+  PixelSpritePalette,
+  PixelSpriteTemplate,
+  PixelSpriteTemplateContext,
+  PixelSpriteTemplateRegistry,
+} from "./sprites/PixelSpriteGenerator.js";
+export { builtinPixelSpriteTemplates, defaultPixelSpritePalette } from "./sprites/PixelSpriteTemplates.js";
