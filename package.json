@@ -9,6 +9,10 @@
   "scripts": {
     "build": "node scripts/build-packages.mjs",
     "check:exports": "node scripts/check-package-exports.mjs",
+    "editor:configure": "node scripts/editor-cmake.mjs configure",
+    "editor:build": "node scripts/editor-cmake.mjs build",
+    "editor:run": "node scripts/editor-cmake.mjs run",
+    "editor:package": "node scripts/editor-cmake.mjs package",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
