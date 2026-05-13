@@ -45,7 +45,7 @@ QString buildAssetListCommand(const QString& root, const QStringList& ignore) {
   const auto pruneClause = pruneParts.isEmpty() ? QString() : QString("( %1 ) -prune -o ").arg(pruneParts.join(" -o "));
   return QString(
              "find %1 %2-type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' -o -iname '*.gif' -o -iname '*.bmp' \\) "
-             "-printf '%%p\\t%%s\\t%%TY-%%Tm-%%Td %%TH:%%TM\\n' 2>/dev/null | head -n %3")
+             "-printf '%p\\t%s\\t%TY-%Tm-%Td %TH:%TM\\n' 2>/dev/null | head -n %3")
       .arg(shellQuote(root), pruneClause, QString::number(kMaxAssets));
 }
 

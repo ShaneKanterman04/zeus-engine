@@ -309,7 +309,7 @@ void AssetStudioWidget::refreshRunImages() {
   if (currentRunPath_.isEmpty()) return;
   stopProcess(process_);
   listBuffer_.clear();
-  const auto command = QString("find %1 -type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \\) -printf '%%p\\n' 2>/dev/null | sort").arg(shellQuote(currentRunPath_));
+  const auto command = QString("find %1 -type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \\) -printf '%p\\n' 2>/dev/null | sort").arg(shellQuote(currentRunPath_));
   process_ = startCommand(command);
   jobKind_ = JobKind::List;
   setBusy(true, "Loading generated images");
