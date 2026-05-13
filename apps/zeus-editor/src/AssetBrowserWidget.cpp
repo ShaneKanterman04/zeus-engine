@@ -1,5 +1,7 @@
 #include "AssetBrowserWidget.h"
 
+#include "EditorIcons.h"
+
 #include <QAbstractItemView>
 #include <QFileInfo>
 #include <QFrame>
@@ -16,7 +18,6 @@
 #include <QSize>
 #include <QTextEdit>
 #include <QToolButton>
-#include <QStyle>
 #include <QVBoxLayout>
 
 namespace {
@@ -138,6 +139,7 @@ void AssetBrowserWidget::handleListFinished(int code, QProcess::ExitStatus statu
     entry.item->setData(Qt::UserRole + 3, entry.isImage);
     entry.item->setTextAlignment(Qt::AlignHCenter);
     entry.item->setToolTip(entry.path);
+    entry.item->setIcon(editorIcon(entry.isImage ? EditorIcon::Image : EditorIcon::File, QColor("#475467"), QSize(kThumbSize, kThumbSize)));
 
     entries_.insert(entry.path, entry);
     grid_->addItem(entry.item);
@@ -246,7 +248,9 @@ void AssetBrowserWidget::buildUi() {
   refreshButton_ = new QToolButton(this);
   refreshButton_->setAutoRaise(true);
   refreshButton_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-  refreshButton_->setIcon(style()->standardIcon(QStyle::SP_BrowserReload));
+  refreshButton_->setIcon(editorIcon(EditorIcon::Refresh));
+  refreshButton_->setIconSize(QSize(18, 18));
+  refreshButton_->setFixedSize(32, 32);
   refreshButton_->setToolTip("Refresh assets");
   statusLabel_ = new QLabel(this);
   statusLabel_->setMinimumWidth(180);

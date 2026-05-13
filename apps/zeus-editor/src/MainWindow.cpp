@@ -1,5 +1,7 @@
 #include "MainWindow.h"
 
+#include "EditorIcons.h"
+
 #include <QAction>
 #include <QApplication>
 #include <QCoreApplication>
@@ -20,13 +22,13 @@
 #include <QKeySequence>
 #include <QRegularExpression>
 #include <QShortcut>
+#include <QSize>
 #include <QSplitter>
 #include <QStandardPaths>
 #include <QStatusBar>
 #include <QTabWidget>
 #include <QTextEdit>
 #include <QToolButton>
-#include <QStyle>
 #include <QTreeWidget>
 #include <QTimer>
 #include <QUrl>
@@ -74,11 +76,13 @@ int portFromUrl(const QString& url, int fallback) {
   return parsed.port(fallback);
 }
 
-QToolButton* createIconButton(QWidget* parent, QStyle::StandardPixmap icon, const QString& tooltip) {
+QToolButton* createIconButton(QWidget* parent, EditorIcon icon, const QString& tooltip) {
   auto* button = new QToolButton(parent);
   button->setAutoRaise(true);
   button->setToolButtonStyle(Qt::ToolButtonIconOnly);
-  button->setIcon(parent->style()->standardIcon(icon));
+  button->setIcon(editorIcon(icon));
+  button->setIconSize(QSize(18, 18));
+  button->setFixedSize(34, 34);
   button->setToolTip(tooltip);
   return button;
 }
@@ -128,7 +132,7 @@ void MainWindow::buildUi() {
   titleLayout->setSpacing(2);
   titleLabel_ = new QLabel("Zeus Editor", titleBlock);
   titleLabel_->setObjectName("appTitle");
-  subtitleLabel_ = new QLabel(QString("%1  •  %2").arg(profile_.name, sshTarget(profile_.ssh)), titleBlock);
+  subtitleLabel_ = new QLabel(QString("%1 - %2").arg(profile_.name, sshTarget(profile_.ssh)), titleBlock);
   subtitleLabel_->setObjectName("appSubtitle");
   titleLayout->addWidget(titleLabel_);
   titleLayout->addWidget(subtitleLabel_);
@@ -150,13 +154,13 @@ void MainWindow::buildUi() {
   actionsLayout->setContentsMargins(0, 0, 0, 0);
   actionsLayout->setSpacing(6);
 
-  refreshButton_ = createIconButton(actions, QStyle::SP_BrowserReload, "Refresh files");
-  restartTerminalButton_ = createIconButton(actions, QStyle::SP_DesktopIcon, "Restart terminal");
-  reloadButton_ = createIconButton(actions, QStyle::SP_BrowserReload, "Reload viewport");
-  updateButton_ = createIconButton(actions, QStyle::SP_DialogApplyButton, "Update editor");
-  killButton_ = createIconButton(actions, QStyle::SP_DialogCancelButton, "Kill stale server");
-  launchButton_ = createIconButton(actions, QStyle::SP_MediaPlay, "Launch remote dev server");
-  stopButton_ = createIconButton(actions, QStyle::SP_MediaStop, "Stop remote dev server");
+  refreshButton_ = createIconButton(actions, EditorIcon::Refresh, "Refresh files");
+  restartTerminalButton_ = createIconButton(actions, EditorIcon::Terminal, "Restart terminal");
+  reloadButton_ = createIconButton(actions, EditorIcon::Viewport, "Reload viewport");
+  updateButton_ = createIconButton(actions, EditorIcon::Update, "Update editor");
+  killButton_ = createIconButton(actions, EditorIcon::Kill, "Kill stale server");
+  launchButton_ = createIconButton(actions, EditorIcon::Play, "Launch remote dev server");
+  stopButton_ = createIconButton(actions, EditorIcon::Stop, "Stop remote dev server");
   stopButton_->setEnabled(false);
 
   actionsLayout->addWidget(refreshButton_);

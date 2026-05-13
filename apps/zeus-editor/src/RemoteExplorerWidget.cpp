@@ -1,14 +1,13 @@
 #include "RemoteExplorerWidget.h"
 
+#include "EditorIcons.h"
+
 #include <QAbstractItemView>
-#include <QApplication>
 #include <QFileInfo>
 #include <QFont>
-#include <QIcon>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QStyle>
 #include <QToolButton>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
@@ -42,14 +41,6 @@ void stopProcess(QProcess*& process) {
   }
   process->deleteLater();
   process = nullptr;
-}
-
-QIcon folderIcon() {
-  return QApplication::style()->standardIcon(QStyle::SP_DirIcon);
-}
-
-QIcon fileIcon() {
-  return QApplication::style()->standardIcon(QStyle::SP_FileIcon);
 }
 
 }  // namespace
@@ -177,22 +168,30 @@ void RemoteExplorerWidget::buildUi() {
   backButton_ = new QToolButton(this);
   backButton_->setAutoRaise(true);
   backButton_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-  backButton_->setIcon(style()->standardIcon(QStyle::SP_ArrowBack));
+  backButton_->setIcon(editorIcon(EditorIcon::ArrowBack));
+  backButton_->setIconSize(QSize(18, 18));
+  backButton_->setFixedSize(32, 32);
   backButton_->setToolTip("Back");
   forwardButton_ = new QToolButton(this);
   forwardButton_->setAutoRaise(true);
   forwardButton_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-  forwardButton_->setIcon(style()->standardIcon(QStyle::SP_ArrowForward));
+  forwardButton_->setIcon(editorIcon(EditorIcon::ArrowForward));
+  forwardButton_->setIconSize(QSize(18, 18));
+  forwardButton_->setFixedSize(32, 32);
   forwardButton_->setToolTip("Forward");
   upButton_ = new QToolButton(this);
   upButton_->setAutoRaise(true);
   upButton_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-  upButton_->setIcon(style()->standardIcon(QStyle::SP_ArrowUp));
+  upButton_->setIcon(editorIcon(EditorIcon::ArrowUp));
+  upButton_->setIconSize(QSize(18, 18));
+  upButton_->setFixedSize(32, 32);
   upButton_->setToolTip("Up");
   refreshButton_ = new QToolButton(this);
   refreshButton_->setAutoRaise(true);
   refreshButton_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-  refreshButton_->setIcon(style()->standardIcon(QStyle::SP_BrowserReload));
+  refreshButton_->setIcon(editorIcon(EditorIcon::Refresh));
+  refreshButton_->setIconSize(QSize(18, 18));
+  refreshButton_->setFixedSize(32, 32);
   refreshButton_->setToolTip("Refresh");
   pathEdit_ = new QLineEdit(this);
   pathEdit_->setClearButtonEnabled(true);
@@ -362,7 +361,7 @@ void RemoteExplorerWidget::populateDirectory(const QString& output) {
       const auto sizeLabel = humanSize(entry.sizeText);
       const auto details = entry.modifiedText.isEmpty() ? QString("Size: %1").arg(sizeLabel) : QString("Size: %1\nModified: %2").arg(sizeLabel, entry.modifiedText);
       item->setToolTip(NameColumn, QString("%1\n%2").arg(entry.path, details));
-      item->setIcon(NameColumn, isDirectoryKind(entry.kind) ? folderIcon() : fileIcon());
+      item->setIcon(NameColumn, editorIcon(isDirectoryKind(entry.kind) ? EditorIcon::Folder : EditorIcon::File, QColor("#475467"), QSize(18, 18)));
       if (isDirectoryKind(entry.kind)) {
         auto font = item->font(NameColumn);
         font.setBold(true);
