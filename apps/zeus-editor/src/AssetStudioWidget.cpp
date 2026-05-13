@@ -25,6 +25,7 @@
 namespace {
 
 constexpr int kThumbSize = 160;
+constexpr const char* kCodexYoloFlag = "--dangerously-bypass-approvals-and-sandbox";
 
 QString sanitizedSlug(QString value) {
   value = value.trimmed().toLower();
@@ -80,8 +81,9 @@ void AssetStudioWidget::generateConcepts() {
   currentRunPath_ = nextRunPath();
   refinedPath_.clear();
   clearImages();
-  const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 --sandbox workspace-write --output-last-message %3 %4")
-                           .arg(shellQuote(currentRunPath_), shellQuote(remoteRoot_), shellQuote(QString("%1/codex-final.md").arg(currentRunPath_)), shellQuote(codexConceptPrompt(currentRunPath_)));
+  const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 %3 --output-last-message %4 %5")
+                           .arg(shellQuote(currentRunPath_), shellQuote(remoteRoot_), QString(kCodexYoloFlag),
+                                shellQuote(QString("%1/codex-final.md").arg(currentRunPath_)), shellQuote(codexConceptPrompt(currentRunPath_)));
   startRemoteCommand(JobKind::Concepts, "Generating concept sheet", command);
 }
 
@@ -90,8 +92,9 @@ void AssetStudioWidget::refineSelected() {
   if (process_ || selectedPath.isEmpty()) return;
   const auto refineRunPath = QString("%1/refine-%2").arg(currentRunPath_, QDateTime::currentDateTimeUtc().toString("HHmmss"));
   refinedPath_ = QString("%1/runtime-candidate.png").arg(refineRunPath);
-  const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 --sandbox workspace-write --image %3 --output-last-message %4 %5")
-                           .arg(shellQuote(refineRunPath), shellQuote(remoteRoot_), shellQuote(selectedPath), shellQuote(QString("%1/codex-final.md").arg(refineRunPath)), shellQuote(codexRefinePrompt(refineRunPath, selectedPath)));
+  const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 %3 --image %4 --output-last-message %5 %6")
+                           .arg(shellQuote(refineRunPath), shellQuote(remoteRoot_), QString(kCodexYoloFlag), shellQuote(selectedPath),
+                                shellQuote(QString("%1/codex-final.md").arg(refineRunPath)), shellQuote(codexRefinePrompt(refineRunPath, selectedPath)));
   startRemoteCommand(JobKind::Refine, "Refining selected concept", command);
 }
 
@@ -317,6 +320,11 @@ void AssetStudioWidget::refreshRunImages() {
     stopProcess(process_);
     jobKind_ = JobKind::None;
     clearImages();
+    if (lines.isEmpty()) {
+      setBusy(false);
+      handleMissingRunImages();
+      return;
+    }
     for (const auto& line : lines) {
       auto* item = new QListWidgetItem(imageName(line));
       item->setData(Qt::UserRole, line);
@@ -368,6 +376,14 @@ void AssetStudioWidget::loadLocalThumbnail(const QString& path) {
   }
 }
 
+void AssetStudioWidget::handleMissingRunImages() {
+  const auto message = QString("Codex finished but no project images were written to %1. Check the Codex log for a generated_images fallback path.").arg(currentRunPath_);
+  appendLog(QString("%1\n").arg(message));
+  phaseLabel_->setText("No project images written");
+  selectedLabel_->setText(message);
+  emit statusMessage("Asset Studio: no project images written");
+}
+
 void AssetStudioWidget::clearImages() {
   stopProcess(thumbnailProcess_);
   imageList_->clear();
@@ -397,7 +413,9 @@ QString AssetStudioWidget::codexConceptPrompt(const QString& runPath) const {
              "Style: cold late-autumn frontier survival, readable gameplay silhouette, no text, no watermark. "
              "Use case: stylized-concept. Asset type: source concept sheet for Last Hearth game art, not final runtime art. "
              "Create four distinct candidates plus a sheet. Save files exactly in %4 as concept-sheet.png, concept-01.png, concept-02.png, concept-03.png, concept-04.png, manifest.json. "
-             "Do not leave the generated images only in Codex default output storage; copy the project-bound PNGs into the requested run folder. "
+             "You are running with filesystem access; create the run folder if missing, copy the generated PNGs into it with exactly those filenames, "
+             "write manifest.json, and verify all six files exist before your final response. Do not leave the generated images only in Codex default output storage. "
+             "If any copy or write fails, report the exact generated_images source directory and failed destination. "
              "The JSON manifest must include slug, prompt, files, styleNotes, targetUse, and reviewChecklist.")
       .arg(slug(), assetRequestText(), domainCombo_->currentText(), runPath);
 }
@@ -407,7 +425,9 @@ QString AssetStudioWidget::codexRefinePrompt(const QString& runPath, const QStri
              "$imagegen Refine the attached/selected Last Hearth concept into a runtime-ready PNG candidate. "
              "Slug: %1. Source image: %2. User request: %3. Preserve strong silhouette and transparent/clean background where appropriate. "
              "Save exactly in %4 as refined.png, runtime-candidate.png, candidate.metadata.json, qa.md. "
-             "Do not leave the generated images only in Codex default output storage; copy the project-bound PNGs into the requested run folder. "
+             "You are running with filesystem access; create the run folder if missing, copy generated PNGs into it with exactly those filenames, "
+             "write candidate.metadata.json and qa.md, and verify all four files exist before your final response. "
+             "Do not leave the generated images only in Codex default output storage. If any copy or write fails, report the exact generated_images source directory and failed destination. "
              "Metadata must include slug, sourceConcept, prompt, provenance generated, reviewStatus draft, commercialUseReviewed false, accessibilityNotes, and tags.")
       .arg(slug(), selectedPath, assetRequestText(), runPath);
 }

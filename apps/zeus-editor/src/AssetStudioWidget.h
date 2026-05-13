@@ -60,6 +60,7 @@ class AssetStudioWidget : public QWidget {
   void refreshRunImages();
   void loadNextThumbnail();
   void loadLocalThumbnail(const QString& path);
+  void handleMissingRunImages();
   void clearImages();
   QString slug() const;
   QString nextRunPath() const;
