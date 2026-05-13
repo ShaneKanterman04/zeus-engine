@@ -39,6 +39,7 @@ class AssetStudioWidget : public QWidget {
   void runPackAndValidate();
   void cancelJob();
   void handleSelectionChanged();
+  void updateGenerateState();
 
  private:
   enum class JobKind { None, Concepts, Refine, Promote, PackValidate, List, Thumbnail };
@@ -55,6 +56,7 @@ class AssetStudioWidget : public QWidget {
   void finishJob(int code, QProcess::ExitStatus status);
   void appendLog(const QString& text);
   void setBusy(bool busy, const QString& label = QString());
+  QString assetRequestText() const;
   void refreshRunImages();
   void loadNextThumbnail();
   void loadLocalThumbnail(const QString& path);

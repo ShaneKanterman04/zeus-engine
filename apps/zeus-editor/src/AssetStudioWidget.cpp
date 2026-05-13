@@ -70,6 +70,13 @@ void AssetStudioWidget::focusPrompt() {
 
 void AssetStudioWidget::generateConcepts() {
   if (process_) return;
+  if (assetRequestText().trimmed().isEmpty()) {
+    appendLog("Enter an asset prompt or slug before generating concepts.\n");
+    phaseLabel_->setText("Needs asset prompt");
+    emit statusMessage("Asset Studio needs an asset prompt");
+    updateGenerateState();
+    return;
+  }
   currentRunPath_ = nextRunPath();
   refinedPath_.clear();
   clearImages();
@@ -124,6 +131,11 @@ void AssetStudioWidget::handleSelectionChanged() {
   promoteButton_->setEnabled(!selected.isEmpty() && !process_);
 }
 
+void AssetStudioWidget::updateGenerateState() {
+  if (!generateButton_) return;
+  generateButton_->setEnabled(!process_ && !assetRequestText().trimmed().isEmpty());
+}
+
 void AssetStudioWidget::buildUi() {
   auto* root = new QVBoxLayout(this);
   root->setContentsMargins(12, 12, 12, 12);
@@ -164,6 +176,7 @@ void AssetStudioWidget::buildUi() {
   cancelButton_ = new QPushButton("Cancel", this);
   refineButton_->setEnabled(false);
   promoteButton_->setEnabled(false);
+  generateButton_->setEnabled(false);
   cancelButton_->setEnabled(false);
   buttons->addWidget(generateButton_);
   buttons->addWidget(refineButton_);
@@ -207,6 +220,8 @@ void AssetStudioWidget::buildUi() {
   connect(packButton_, &QPushButton::clicked, this, &AssetStudioWidget::runPackAndValidate);
   connect(cancelButton_, &QPushButton::clicked, this, &AssetStudioWidget::cancelJob);
   connect(imageList_, &QListWidget::itemSelectionChanged, this, &AssetStudioWidget::handleSelectionChanged);
+  connect(slugEdit_, &QLineEdit::textChanged, this, &AssetStudioWidget::updateGenerateState);
+  connect(promptEdit_, &QTextEdit::textChanged, this, &AssetStudioWidget::updateGenerateState);
 }
 
 bool AssetStudioWidget::useLocalExecution() const {
@@ -224,6 +239,7 @@ QProcess* AssetStudioWidget::startCommand(const QString& command) {
   process->setProgram("bash");
   process->setArguments({"-lc", command});
   process->setProcessChannelMode(QProcess::MergedChannels);
+  process->setStandardInputFile(QProcess::nullDevice());
   process->start();
   process->closeWriteChannel();
   return process;
@@ -260,17 +276,30 @@ void AssetStudioWidget::finishJob(int code, QProcess::ExitStatus status) {
 
 void AssetStudioWidget::appendLog(const QString& text) {
   if (text.isEmpty()) return;
+  auto filtered = text;
+  filtered.replace("Reading additional input from stdin...\n", "");
+  filtered.replace("Reading additional input from stdin...", "");
+  if (filtered.isEmpty()) return;
   log_->moveCursor(QTextCursor::End);
-  log_->insertPlainText(text);
+  log_->insertPlainText(filtered);
   log_->moveCursor(QTextCursor::End);
 }
 
 void AssetStudioWidget::setBusy(bool busy, const QString& label) {
-  generateButton_->setEnabled(!busy);
+  updateGenerateState();
   packButton_->setEnabled(!busy);
   cancelButton_->setEnabled(busy);
-  phaseLabel_->setText(busy ? label : "Idle");
+  phaseLabel_->setText(busy ? QString("%1... this can take a while").arg(label) : "Idle");
   handleSelectionChanged();
+}
+
+QString AssetStudioWidget::assetRequestText() const {
+  const auto prompt = promptEdit_ ? promptEdit_->toPlainText().trimmed() : QString();
+  if (!prompt.isEmpty()) return prompt;
+  const auto requestedSlug = slugEdit_ ? slugEdit_->text().trimmed() : QString();
+  if (requestedSlug.isEmpty()) return QString();
+  const auto domain = domainCombo_ ? domainCombo_->currentText() : QString("asset");
+  return QString("%1, %2 asset concepts").arg(requestedSlug, domain);
 }
 
 void AssetStudioWidget::refreshRunImages() {
@@ -364,20 +393,23 @@ QString AssetStudioWidget::selectedImagePath() const {
 
 QString AssetStudioWidget::codexConceptPrompt(const QString& runPath) const {
   return QString(
-             "$imagegen Create a concept sheet for a Last Hearth game asset. User request: %1. Domain: %2. "
+             "$imagegen Create a concept sheet for a Last Hearth game asset. Slug: %1. User request: %2. Domain: %3. "
              "Style: cold late-autumn frontier survival, readable gameplay silhouette, no text, no watermark. "
-             "Create four distinct candidates plus a sheet. Save files exactly in %3 as concept-sheet.png, concept-01.png, concept-02.png, concept-03.png, concept-04.png, manifest.json. "
-             "The JSON manifest must include slug, prompt, files, styleNotes, and reviewChecklist.")
-      .arg(promptEdit_->toPlainText().trimmed(), domainCombo_->currentText(), runPath);
+             "Use case: stylized-concept. Asset type: source concept sheet for Last Hearth game art, not final runtime art. "
+             "Create four distinct candidates plus a sheet. Save files exactly in %4 as concept-sheet.png, concept-01.png, concept-02.png, concept-03.png, concept-04.png, manifest.json. "
+             "Do not leave the generated images only in Codex default output storage; copy the project-bound PNGs into the requested run folder. "
+             "The JSON manifest must include slug, prompt, files, styleNotes, targetUse, and reviewChecklist.")
+      .arg(slug(), assetRequestText(), domainCombo_->currentText(), runPath);
 }
 
 QString AssetStudioWidget::codexRefinePrompt(const QString& runPath, const QString& selectedPath) const {
   return QString(
              "$imagegen Refine the attached/selected Last Hearth concept into a runtime-ready PNG candidate. "
-             "Source image: %1. User request: %2. Preserve strong silhouette and transparent/clean background where appropriate. "
-             "Save exactly in %3 as refined.png, runtime-candidate.png, candidate.metadata.json, qa.md. "
+             "Slug: %1. Source image: %2. User request: %3. Preserve strong silhouette and transparent/clean background where appropriate. "
+             "Save exactly in %4 as refined.png, runtime-candidate.png, candidate.metadata.json, qa.md. "
+             "Do not leave the generated images only in Codex default output storage; copy the project-bound PNGs into the requested run folder. "
              "Metadata must include slug, sourceConcept, prompt, provenance generated, reviewStatus draft, commercialUseReviewed false, accessibilityNotes, and tags.")
-      .arg(selectedPath, promptEdit_->toPlainText().trimmed(), runPath);
+      .arg(slug(), selectedPath, assetRequestText(), runPath);
 }
 
 QString AssetStudioWidget::packCommand() const {
