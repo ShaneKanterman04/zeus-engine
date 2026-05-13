@@ -26,3 +26,5 @@ class TerminalWidget : public QPlainTextEdit {
   QProcess* process_ = nullptr;
   QString currentInput_;
 };
+
+QString stripTerminalOutput(const QString& text);

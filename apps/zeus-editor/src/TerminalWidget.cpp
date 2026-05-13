@@ -4,6 +4,7 @@
 #include <QClipboard>
 #include <QKeyEvent>
 #include <QKeySequence>
+#include <QRegularExpression>
 #include <QScrollBar>
 #include <QTextCursor>
 
@@ -25,7 +26,8 @@ void TerminalWidget::start(const SshProfile& ssh, const QString& remotePath) {
 
   process_ = new QProcess(this);
   auto args = sshBaseArgs(ssh);
-  args << "-tt" << QString("cd %1 && exec ${SHELL:-/bin/sh} -i").arg(shellQuote(remotePath));
+  args << "-tt"
+       << QString("cd %1 && TERM=dumb NO_COLOR=1 CLICOLOR=0 exec ${SHELL:-/bin/sh} -i").arg(shellQuote(remotePath));
   process_->setProgram("ssh");
   process_->setArguments(args);
   process_->setProcessChannelMode(QProcess::MergedChannels);
@@ -94,7 +96,7 @@ void TerminalWidget::keyPressEvent(QKeyEvent* event) {
 
 void TerminalWidget::appendProcessOutput(const QByteArray& output) {
   moveCursor(QTextCursor::End);
-  insertPlainText(QString::fromLocal8Bit(output));
+  insertPlainText(stripTerminalOutput(QString::fromLocal8Bit(output)));
   verticalScrollBar()->setValue(verticalScrollBar()->maximum());
 }
 
@@ -102,4 +104,24 @@ void TerminalWidget::writeCommand() {
   process_->write(currentInput_.toLocal8Bit());
   process_->write("\n");
   currentInput_.clear();
+}
+
+QString stripTerminalOutput(const QString& text) {
+  static const QRegularExpression csi(R"(\x1B\[[0-?]*[ -/]*[@-~])");
+  static const QRegularExpression osc(R"(\x1B\][^\a]*(?:\a|\x1B\\))");
+  static const QRegularExpression singleByte(R"(\x1B[@-Z\\-_])");
+  auto cleaned = text;
+  cleaned.replace("\r", "\n");
+  cleaned.replace(csi, "");
+  cleaned.replace(osc, "");
+  cleaned.replace(singleByte, "");
+  QString result;
+  result.reserve(cleaned.size());
+  for (const auto ch : cleaned) {
+    const auto code = ch.unicode();
+    if (code == '\n' || code == '\t' || code >= 0x20) {
+      result.append(ch);
+    }
+  }
+  return result;
 }
