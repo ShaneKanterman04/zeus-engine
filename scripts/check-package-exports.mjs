@@ -1,5 +1,6 @@
 const packages = [
   "@zeus/assets",
+  "@zeus/ai",
   "@zeus/audio",
   "@zeus/core",
   "@zeus/debug",
@@ -17,9 +18,12 @@ for (const packageName of packages) {
 }
 
 const core = await import("@zeus/core");
+const ai = await import("@zeus/ai");
 const rendererPixi = await import("@zeus/renderer-pixi");
 
 const expectedNamedExports = [
+  [ai, "scoreSignalsAtPoint"],
+  [ai, "ageAiSignals"],
   [core, "ZeusFrameMetricsSampler"],
   [core, "createEmptyFrameMetricsSnapshot"],
   [rendererPixi, "ZeusPixiRuntime"],
