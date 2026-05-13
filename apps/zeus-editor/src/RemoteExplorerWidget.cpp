@@ -1,21 +1,24 @@
 #include "RemoteExplorerWidget.h"
 
 #include <QAbstractItemView>
+#include <QApplication>
 #include <QFileInfo>
-#include <QHeaderView>
+#include <QFont>
+#include <QIcon>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QPushButton>
-#include <QTableWidget>
-#include <QTableWidgetItem>
+#include <QStyle>
 #include <QToolButton>
+#include <QTreeWidget>
+#include <QTreeWidgetItem>
+#include <QSize>
 #include <QVBoxLayout>
 #include <algorithm>
 
 namespace {
 
-enum Columns { NameColumn = 0, KindColumn = 1, SizeColumn = 2, ModifiedColumn = 3 };
+enum Columns { NameColumn = 0 };
 
 QString humanSize(const QString& bytesText) {
   bool ok = false;
@@ -39,6 +42,14 @@ void stopProcess(QProcess*& process) {
   }
   process->deleteLater();
   process = nullptr;
+}
+
+QIcon folderIcon() {
+  return QApplication::style()->standardIcon(QStyle::SP_DirIcon);
+}
+
+QIcon fileIcon() {
+  return QApplication::style()->standardIcon(QStyle::SP_FileIcon);
 }
 
 }  // namespace
@@ -74,7 +85,7 @@ QString RemoteExplorerWidget::currentPath() const {
 }
 
 void RemoteExplorerWidget::requestFocusExplorer() {
-  if (table_) table_->setFocus();
+  if (tree_) tree_->setFocus();
 }
 
 void RemoteExplorerWidget::handleRefreshClicked() {
@@ -111,10 +122,11 @@ void RemoteExplorerWidget::handleSearchChanged(const QString& text) {
   applyFilter();
 }
 
-void RemoteExplorerWidget::handleTableItemActivated(QTableWidgetItem* item) {
+void RemoteExplorerWidget::handleTreeItemActivated(QTreeWidgetItem* item, int column) {
+  Q_UNUSED(column);
   if (!item) return;
-  const auto path = item->data(Qt::UserRole).toString();
-  const auto kind = item->data(Qt::UserRole + 1).toString();
+  const auto path = item->data(NameColumn, Qt::UserRole).toString();
+  const auto kind = item->data(NameColumn, Qt::UserRole + 1).toString();
   if (path.isEmpty()) return;
   if (isDirectoryKind(kind)) {
     loadDirectory(path, true);
@@ -152,27 +164,44 @@ void RemoteExplorerWidget::handleListError(QProcess::ProcessError error) {
 }
 
 void RemoteExplorerWidget::buildUi() {
+  setObjectName("remoteExplorer");
+
   auto* root = new QVBoxLayout(this);
   root->setContentsMargins(0, 0, 0, 0);
-  root->setSpacing(6);
+  root->setSpacing(8);
 
   auto* navRow = new QHBoxLayout();
   navRow->setContentsMargins(0, 0, 0, 0);
   navRow->setSpacing(6);
 
   backButton_ = new QToolButton(this);
-  backButton_->setText("<");
+  backButton_->setAutoRaise(true);
+  backButton_->setToolButtonStyle(Qt::ToolButtonIconOnly);
+  backButton_->setIcon(style()->standardIcon(QStyle::SP_ArrowBack));
+  backButton_->setToolTip("Back");
   forwardButton_ = new QToolButton(this);
-  forwardButton_->setText(">");
+  forwardButton_->setAutoRaise(true);
+  forwardButton_->setToolButtonStyle(Qt::ToolButtonIconOnly);
+  forwardButton_->setIcon(style()->standardIcon(QStyle::SP_ArrowForward));
+  forwardButton_->setToolTip("Forward");
   upButton_ = new QToolButton(this);
-  upButton_->setText("^");
-  refreshButton_ = new QPushButton("Refresh", this);
+  upButton_->setAutoRaise(true);
+  upButton_->setToolButtonStyle(Qt::ToolButtonIconOnly);
+  upButton_->setIcon(style()->standardIcon(QStyle::SP_ArrowUp));
+  upButton_->setToolTip("Up");
+  refreshButton_ = new QToolButton(this);
+  refreshButton_->setAutoRaise(true);
+  refreshButton_->setToolButtonStyle(Qt::ToolButtonIconOnly);
+  refreshButton_->setIcon(style()->standardIcon(QStyle::SP_BrowserReload));
+  refreshButton_->setToolTip("Refresh");
   pathEdit_ = new QLineEdit(this);
   pathEdit_->setClearButtonEnabled(true);
+  pathEdit_->setPlaceholderText("Path");
   searchEdit_ = new QLineEdit(this);
   searchEdit_->setPlaceholderText("Search");
   statusLabel_ = new QLabel(this);
-  statusLabel_->setMinimumWidth(220);
+  statusLabel_->setMinimumWidth(180);
+  statusLabel_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
   navRow->addWidget(backButton_);
   navRow->addWidget(forwardButton_);
@@ -182,26 +211,65 @@ void RemoteExplorerWidget::buildUi() {
   navRow->addWidget(searchEdit_);
   navRow->addWidget(statusLabel_);
 
-  table_ = new QTableWidget(this);
-  table_->setColumnCount(4);
-  table_->setHorizontalHeaderLabels({"Name", "Type", "Size", "Modified"});
-  table_->horizontalHeader()->setStretchLastSection(true);
-  table_->horizontalHeader()->setSectionResizeMode(NameColumn, QHeaderView::Stretch);
-  table_->setSelectionBehavior(QAbstractItemView::SelectRows);
-  table_->setSelectionMode(QAbstractItemView::SingleSelection);
-  table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-  table_->setSortingEnabled(false);
+  tree_ = new QTreeWidget(this);
+  tree_->setHeaderHidden(true);
+  tree_->setRootIsDecorated(false);
+  tree_->setIndentation(16);
+  tree_->setIconSize(QSize(16, 16));
+  tree_->setUniformRowHeights(true);
+  tree_->setSelectionBehavior(QAbstractItemView::SelectRows);
+  tree_->setSelectionMode(QAbstractItemView::SingleSelection);
+  tree_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  tree_->setSortingEnabled(false);
+  tree_->setAlternatingRowColors(true);
+  tree_->setAllColumnsShowFocus(true);
 
   root->addLayout(navRow);
-  root->addWidget(table_, 1);
+  root->addWidget(tree_, 1);
 
   connect(backButton_, &QToolButton::clicked, this, &RemoteExplorerWidget::handleBackClicked);
   connect(forwardButton_, &QToolButton::clicked, this, &RemoteExplorerWidget::handleForwardClicked);
   connect(upButton_, &QToolButton::clicked, this, &RemoteExplorerWidget::handleUpClicked);
-  connect(refreshButton_, &QPushButton::clicked, this, &RemoteExplorerWidget::handleRefreshClicked);
+  connect(refreshButton_, &QToolButton::clicked, this, &RemoteExplorerWidget::handleRefreshClicked);
   connect(pathEdit_, &QLineEdit::returnPressed, this, &RemoteExplorerWidget::handlePathEdited);
   connect(searchEdit_, &QLineEdit::textChanged, this, &RemoteExplorerWidget::handleSearchChanged);
-  connect(table_, &QTableWidget::itemActivated, this, &RemoteExplorerWidget::handleTableItemActivated);
+  connect(tree_, &QTreeWidget::itemActivated, this, &RemoteExplorerWidget::handleTreeItemActivated);
+
+  setStyleSheet(R"(
+    #remoteExplorer QToolButton {
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 4px;
+    }
+    #remoteExplorer QToolButton:hover {
+      background: palette(alternate-base);
+      border-color: palette(mid);
+    }
+    #remoteExplorer QLineEdit {
+      border: 1px solid palette(mid);
+      border-radius: 6px;
+      padding: 4px 8px;
+      background: palette(base);
+    }
+    #remoteExplorer QTreeWidget {
+      border: 1px solid palette(mid);
+      border-radius: 8px;
+      background: palette(base);
+      selection-background-color: palette(highlight);
+      selection-color: palette(highlighted-text);
+    }
+    #remoteExplorer QTreeWidget::item {
+      height: 24px;
+      padding: 0 6px;
+    }
+    #remoteExplorer QTreeWidget::item:hover {
+      background: palette(alternate-base);
+    }
+    #remoteExplorer QTreeWidget::item:selected {
+      background: palette(highlight);
+      color: palette(highlighted-text);
+    }
+  )");
 
   appendStatus("Idle");
 }
@@ -229,9 +297,8 @@ void RemoteExplorerWidget::loadDirectory(const QString& path, bool pushHistory) 
 }
 
 void RemoteExplorerWidget::clearEntries() {
-  if (!table_) return;
-  table_->clearContents();
-  table_->setRowCount(0);
+  if (!tree_) return;
+  tree_->clear();
   entries_.clear();
 }
 
@@ -240,13 +307,13 @@ void RemoteExplorerWidget::clearProcesses() {
 }
 
 void RemoteExplorerWidget::applyFilter() {
-  if (!table_) return;
-  for (int row = 0; row < table_->rowCount(); ++row) {
-    auto* nameItem = table_->item(row, NameColumn);
-    const auto name = nameItem ? nameItem->text().toLower() : QString();
-    const auto path = nameItem ? nameItem->data(Qt::UserRole).toString().toLower() : QString();
+  if (!tree_) return;
+  for (int row = 0; row < tree_->topLevelItemCount(); ++row) {
+    auto* item = tree_->topLevelItem(row);
+    const auto name = item ? item->text(NameColumn).toLower() : QString();
+    const auto path = item ? item->data(NameColumn, Qt::UserRole).toString().toLower() : QString();
     const auto show = searchText_.isEmpty() || name.contains(searchText_) || path.contains(searchText_);
-    table_->setRowHidden(row, !show);
+    if (item) item->setHidden(!show);
   }
 }
 
@@ -261,7 +328,7 @@ void RemoteExplorerWidget::setPathText(const QString& path) {
 }
 
 void RemoteExplorerWidget::populateDirectory(const QString& output) {
-  if (!table_) return;
+  if (!tree_) return;
   clearEntries();
 
   const auto lines = output.split('\n', Qt::SkipEmptyParts);
@@ -287,25 +354,22 @@ void RemoteExplorerWidget::populateDirectory(const QString& output) {
   std::sort(files.begin(), files.end(), compareEntry);
 
   const auto addRows = [this](const QVector<Entry>& rows) {
-    for (const auto& entry : rows) {
-      const auto row = table_->rowCount();
-      table_->insertRow(row);
+    for (auto entry : rows) {
+      auto* item = new QTreeWidgetItem(tree_);
+      item->setText(NameColumn, entry.name);
+      item->setData(NameColumn, Qt::UserRole, entry.path);
+      item->setData(NameColumn, Qt::UserRole + 1, entry.kind);
+      const auto sizeLabel = humanSize(entry.sizeText);
+      const auto details = entry.modifiedText.isEmpty() ? QString("Size: %1").arg(sizeLabel) : QString("Size: %1\nModified: %2").arg(sizeLabel, entry.modifiedText);
+      item->setToolTip(NameColumn, QString("%1\n%2").arg(entry.path, details));
+      item->setIcon(NameColumn, isDirectoryKind(entry.kind) ? folderIcon() : fileIcon());
+      if (isDirectoryKind(entry.kind)) {
+        auto font = item->font(NameColumn);
+        font.setBold(true);
+        item->setFont(NameColumn, font);
+      }
 
-      auto* nameItem = new QTableWidgetItem(entry.name);
-      auto* kindItem = new QTableWidgetItem(isDirectoryKind(entry.kind) ? "dir" : "file");
-      auto* sizeItem = new QTableWidgetItem(isDirectoryKind(entry.kind) ? QString() : humanSize(entry.sizeText));
-      auto* modifiedItem = new QTableWidgetItem(entry.modifiedText);
-
-      nameItem->setData(Qt::UserRole, entry.path);
-      nameItem->setData(Qt::UserRole + 1, entry.kind);
-      kindItem->setData(Qt::UserRole, entry.path);
-      kindItem->setData(Qt::UserRole + 1, entry.kind);
-
-      table_->setItem(row, NameColumn, nameItem);
-      table_->setItem(row, KindColumn, kindItem);
-      table_->setItem(row, SizeColumn, sizeItem);
-      table_->setItem(row, ModifiedColumn, modifiedItem);
-
+      entry.item = item;
       entries_ << entry;
     }
   };
@@ -319,10 +383,6 @@ void RemoteExplorerWidget::populateDirectory(const QString& output) {
 
 void RemoteExplorerWidget::appendStatus(const QString& message) {
   if (statusLabel_) statusLabel_->setText(message);
-}
-
-QString RemoteExplorerWidget::displayName(const QString& path) {
-  return QFileInfo(path).fileName().isEmpty() ? path : QFileInfo(path).fileName();
 }
 
 bool RemoteExplorerWidget::isDirectoryKind(const QString& kind) {

@@ -10,10 +10,9 @@
 
 class QLineEdit;
 class QLabel;
-class QPushButton;
-class QTableWidget;
-class QTableWidgetItem;
 class QToolButton;
+class QTreeWidget;
+class QTreeWidgetItem;
 
 class RemoteExplorerWidget : public QWidget {
   Q_OBJECT
@@ -39,7 +38,7 @@ class RemoteExplorerWidget : public QWidget {
   void handleForwardClicked();
   void handlePathEdited();
   void handleSearchChanged(const QString& text);
-  void handleTableItemActivated(QTableWidgetItem* item);
+  void handleTreeItemActivated(QTreeWidgetItem* item, int column);
   void handleListReadyRead();
   void handleListFinished(int code, QProcess::ExitStatus status);
   void handleListError(QProcess::ProcessError error);
@@ -51,10 +50,7 @@ class RemoteExplorerWidget : public QWidget {
     QString path;
     QString sizeText;
     QString modifiedText;
-    QTableWidgetItem* nameItem = nullptr;
-    QTableWidgetItem* kindItem = nullptr;
-    QTableWidgetItem* sizeItem = nullptr;
-    QTableWidgetItem* modifiedItem = nullptr;
+    QTreeWidgetItem* item = nullptr;
   };
 
   void buildUi();
@@ -66,7 +62,6 @@ class RemoteExplorerWidget : public QWidget {
   void setPathText(const QString& path);
   void populateDirectory(const QString& output);
   void appendStatus(const QString& message);
-  static QString displayName(const QString& path);
   static bool isDirectoryKind(const QString& kind);
 
   SshRunner ssh_;
@@ -86,7 +81,7 @@ class RemoteExplorerWidget : public QWidget {
   QToolButton* backButton_ = nullptr;
   QToolButton* forwardButton_ = nullptr;
   QToolButton* upButton_ = nullptr;
-  QPushButton* refreshButton_ = nullptr;
-  QTableWidget* table_ = nullptr;
+  QToolButton* refreshButton_ = nullptr;
+  QTreeWidget* tree_ = nullptr;
   QVector<Entry> entries_;
 };
