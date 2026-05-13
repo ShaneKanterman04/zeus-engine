@@ -18,6 +18,10 @@ qt_add_executable(zeus-editor
   src/Profile.h
   src/SshRunner.cpp
   src/SshRunner.h
+  src/TerminalBridge.cpp
+  src/TerminalBridge.h
+  src/TerminalSession.cpp
+  src/TerminalSession.h
   src/TerminalWidget.cpp
   src/TerminalWidget.h
 )
