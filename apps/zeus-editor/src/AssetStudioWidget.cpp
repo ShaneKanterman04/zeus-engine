@@ -73,7 +73,7 @@ void AssetStudioWidget::generateConcepts() {
   currentRunPath_ = nextRunPath();
   refinedPath_.clear();
   clearImages();
-  const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 --sandbox workspace-write --ask-for-approval never --output-last-message %3 %4")
+  const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 --sandbox workspace-write --output-last-message %3 %4")
                            .arg(shellQuote(currentRunPath_), shellQuote(remoteRoot_), shellQuote(QString("%1/codex-final.md").arg(currentRunPath_)), shellQuote(codexConceptPrompt(currentRunPath_)));
   startRemoteCommand(JobKind::Concepts, "Generating concept sheet", command);
 }
@@ -83,7 +83,7 @@ void AssetStudioWidget::refineSelected() {
   if (process_ || selectedPath.isEmpty()) return;
   const auto refineRunPath = QString("%1/refine-%2").arg(currentRunPath_, QDateTime::currentDateTimeUtc().toString("HHmmss"));
   refinedPath_ = QString("%1/runtime-candidate.png").arg(refineRunPath);
-  const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 --sandbox workspace-write --ask-for-approval never --image %3 --output-last-message %4 %5")
+  const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 --sandbox workspace-write --image %3 --output-last-message %4 %5")
                            .arg(shellQuote(refineRunPath), shellQuote(remoteRoot_), shellQuote(selectedPath), shellQuote(QString("%1/codex-final.md").arg(refineRunPath)), shellQuote(codexRefinePrompt(refineRunPath, selectedPath)));
   startRemoteCommand(JobKind::Refine, "Refining selected concept", command);
 }
@@ -209,6 +209,21 @@ void AssetStudioWidget::buildUi() {
   connect(imageList_, &QListWidget::itemSelectionChanged, this, &AssetStudioWidget::handleSelectionChanged);
 }
 
+bool AssetStudioWidget::useLocalExecution() const {
+  return QFileInfo(remoteRoot_).isDir();
+}
+
+QProcess* AssetStudioWidget::startCommand(const QString& command) {
+  if (!useLocalExecution()) return ssh_.runRemoteCommand(sshProfile_, command, this);
+
+  auto* process = new QProcess(this);
+  process->setProgram("bash");
+  process->setArguments({"-lc", command});
+  process->setProcessChannelMode(QProcess::MergedChannels);
+  process->start();
+  return process;
+}
+
 void AssetStudioWidget::startRemoteCommand(JobKind kind, const QString& label, const QString& command) {
   if (remoteRoot_.trimmed().isEmpty()) {
     appendLog("Remote project path is empty.\n");
@@ -216,7 +231,7 @@ void AssetStudioWidget::startRemoteCommand(JobKind kind, const QString& label, c
   }
   stopProcess(process_);
   jobKind_ = kind;
-  process_ = ssh_.runRemoteCommand(sshProfile_, command, this);
+  process_ = startCommand(command);
   setBusy(true, label);
   appendLog(QString("\n[%1] %2\n%3\n").arg(QDateTime::currentDateTime().toString("HH:mm:ss"), label, command));
   connect(process_, &QProcess::readyRead, this, [this]() { appendLog(QString::fromUtf8(process_->readAll())); });
@@ -258,7 +273,7 @@ void AssetStudioWidget::refreshRunImages() {
   stopProcess(process_);
   listBuffer_.clear();
   const auto command = QString("find %1 -type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \\) -printf '%%p\\n' 2>/dev/null | sort").arg(shellQuote(currentRunPath_));
-  process_ = ssh_.runRemoteCommand(sshProfile_, command, this);
+  process_ = startCommand(command);
   jobKind_ = JobKind::List;
   setBusy(true, "Loading generated images");
   connect(process_, &QProcess::readyReadStandardOutput, this, [this]() { listBuffer_.append(process_->readAllStandardOutput()); });
@@ -286,6 +301,11 @@ void AssetStudioWidget::loadNextThumbnail() {
   if (thumbnailQueue_.isEmpty()) return;
   stopProcess(thumbnailProcess_);
   thumbnailPath_ = thumbnailQueue_.takeFirst();
+  if (useLocalExecution()) {
+    loadLocalThumbnail(thumbnailPath_);
+    loadNextThumbnail();
+    return;
+  }
   thumbnailBuffer_.clear();
   thumbnailProcess_ = ssh_.streamRemoteFile(sshProfile_, thumbnailPath_, this);
   connect(thumbnailProcess_, &QProcess::readyReadStandardOutput, this, [this]() { thumbnailBuffer_.append(thumbnailProcess_->readAllStandardOutput()); });
@@ -303,6 +323,15 @@ void AssetStudioWidget::loadNextThumbnail() {
     stopProcess(thumbnailProcess_);
     loadNextThumbnail();
   });
+}
+
+void AssetStudioWidget::loadLocalThumbnail(const QString& path) {
+  QImage image;
+  if (!image.load(path)) return;
+  const auto it = images_.find(path);
+  if (it != images_.end() && it->item) {
+    it->item->setIcon(QPixmap::fromImage(image).scaled(kThumbSize, kThumbSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+  }
 }
 
 void AssetStudioWidget::clearImages() {

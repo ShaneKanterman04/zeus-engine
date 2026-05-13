@@ -49,12 +49,15 @@ class AssetStudioWidget : public QWidget {
   };
 
   void buildUi();
+  bool useLocalExecution() const;
+  QProcess* startCommand(const QString& command);
   void startRemoteCommand(JobKind kind, const QString& label, const QString& command);
   void finishJob(int code, QProcess::ExitStatus status);
   void appendLog(const QString& text);
   void setBusy(bool busy, const QString& label = QString());
   void refreshRunImages();
   void loadNextThumbnail();
+  void loadLocalThumbnail(const QString& path);
   void clearImages();
   QString slug() const;
   QString nextRunPath() const;
