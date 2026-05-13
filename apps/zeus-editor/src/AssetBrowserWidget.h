@@ -14,9 +14,9 @@ class QLineEdit;
 class QListWidget;
 class QListWidgetItem;
 class QPlainTextEdit;
-class QPushButton;
 class QScrollArea;
 class QTextEdit;
+class QToolButton;
 
 class AssetBrowserWidget : public QWidget {
   Q_OBJECT
@@ -86,7 +86,7 @@ class AssetBrowserWidget : public QWidget {
   bool loadingDetail_ = false;
 
   QLineEdit* searchEdit_ = nullptr;
-  QPushButton* refreshButton_ = nullptr;
+  QToolButton* refreshButton_ = nullptr;
   QLabel* statusLabel_ = nullptr;
   QListWidget* grid_ = nullptr;
   QLabel* previewImage_ = nullptr;

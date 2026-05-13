@@ -5,16 +5,18 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QFileInfo>
+#include <QFrame>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QHeaderView>
 #include <QImage>
+#include <QHBoxLayout>
+#include <QFont>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMimeDatabase>
 #include <QPixmap>
 #include <QPlainTextEdit>
-#include <QPushButton>
 #include <QKeySequence>
 #include <QRegularExpression>
 #include <QShortcut>
@@ -23,7 +25,8 @@
 #include <QStatusBar>
 #include <QTabWidget>
 #include <QTextEdit>
-#include <QToolBar>
+#include <QToolButton>
+#include <QStyle>
 #include <QTreeWidget>
 #include <QTimer>
 #include <QUrl>
@@ -71,6 +74,15 @@ int portFromUrl(const QString& url, int fallback) {
   return parsed.port(fallback);
 }
 
+QToolButton* createIconButton(QWidget* parent, QStyle::StandardPixmap icon, const QString& tooltip) {
+  auto* button = new QToolButton(parent);
+  button->setAutoRaise(true);
+  button->setToolButtonStyle(Qt::ToolButtonIconOnly);
+  button->setIcon(parent->style()->standardIcon(icon));
+  button->setToolTip(tooltip);
+  return button;
+}
+
 }  // namespace
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
@@ -99,45 +111,83 @@ void MainWindow::buildUi() {
   setWindowTitle("Zeus Editor");
   resize(1440, 900);
 
-  auto* toolbar = addToolBar("Project");
-  toolbar->setMovable(false);
+  auto* central = new QWidget(this);
+  auto* layout = new QVBoxLayout(central);
+  layout->setContentsMargins(12, 12, 12, 12);
+  layout->setSpacing(12);
 
-  remotePathEdit_ = new QLineEdit(profile_.project.remotePath, this);
+  header_ = new QWidget(central);
+  header_->setObjectName("editorHeader");
+  auto* headerLayout = new QHBoxLayout(header_);
+  headerLayout->setContentsMargins(12, 12, 12, 12);
+  headerLayout->setSpacing(12);
+
+  auto* titleBlock = new QWidget(header_);
+  auto* titleLayout = new QVBoxLayout(titleBlock);
+  titleLayout->setContentsMargins(0, 0, 0, 0);
+  titleLayout->setSpacing(2);
+  titleLabel_ = new QLabel("Zeus Editor", titleBlock);
+  titleLabel_->setObjectName("appTitle");
+  subtitleLabel_ = new QLabel(QString("%1  •  %2").arg(profile_.name, sshTarget(profile_.ssh)), titleBlock);
+  subtitleLabel_->setObjectName("appSubtitle");
+  titleLayout->addWidget(titleLabel_);
+  titleLayout->addWidget(subtitleLabel_);
+
+  auto* pathBlock = new QWidget(header_);
+  auto* pathLayout = new QVBoxLayout(pathBlock);
+  pathLayout->setContentsMargins(0, 0, 0, 0);
+  pathLayout->setSpacing(6);
+  pathLabel_ = new QLabel("Remote project", pathBlock);
+  pathLabel_->setObjectName("sectionLabel");
+  remotePathEdit_ = new QLineEdit(profile_.project.remotePath, pathBlock);
   remotePathEdit_->setMinimumWidth(420);
-  toolbar->addWidget(new QLabel("Remote project ", this));
-  toolbar->addWidget(remotePathEdit_);
+  remotePathEdit_->setPlaceholderText("/home/shane/Projects/...");
+  pathLayout->addWidget(pathLabel_);
+  pathLayout->addWidget(remotePathEdit_);
 
-  auto* refreshAction = toolbar->addAction("Refresh");
-  connect(refreshAction, &QAction::triggered, this, &MainWindow::refreshFiles);
+  auto* actions = new QWidget(header_);
+  auto* actionsLayout = new QHBoxLayout(actions);
+  actionsLayout->setContentsMargins(0, 0, 0, 0);
+  actionsLayout->setSpacing(6);
 
-  launchButton_ = new QPushButton("Launch", this);
-  stopButton_ = new QPushButton("Stop", this);
+  refreshButton_ = createIconButton(actions, QStyle::SP_BrowserReload, "Refresh files");
+  restartTerminalButton_ = createIconButton(actions, QStyle::SP_DesktopIcon, "Restart terminal");
+  reloadButton_ = createIconButton(actions, QStyle::SP_BrowserReload, "Reload viewport");
+  updateButton_ = createIconButton(actions, QStyle::SP_DialogApplyButton, "Update editor");
+  killButton_ = createIconButton(actions, QStyle::SP_DialogCancelButton, "Kill stale server");
+  launchButton_ = createIconButton(actions, QStyle::SP_MediaPlay, "Launch remote dev server");
+  stopButton_ = createIconButton(actions, QStyle::SP_MediaStop, "Stop remote dev server");
   stopButton_->setEnabled(false);
-  toolbar->addWidget(launchButton_);
-  toolbar->addWidget(stopButton_);
-  connect(launchButton_, &QPushButton::clicked, this, &MainWindow::launchProject);
-  connect(stopButton_, &QPushButton::clicked, this, &MainWindow::stopProject);
 
-  killButton_ = new QPushButton("Kill Stale Server", this);
-  toolbar->addWidget(killButton_);
-  connect(killButton_, &QPushButton::clicked, this, &MainWindow::killStaleServer);
+  actionsLayout->addWidget(refreshButton_);
+  actionsLayout->addWidget(restartTerminalButton_);
+  actionsLayout->addWidget(reloadButton_);
+  actionsLayout->addWidget(updateButton_);
+  actionsLayout->addWidget(killButton_);
+  actionsLayout->addWidget(launchButton_);
+  actionsLayout->addWidget(stopButton_);
 
-  auto* terminalAction = toolbar->addAction("Restart Terminal");
-  connect(terminalAction, &QAction::triggered, this, &MainWindow::restartTerminal);
+  headerLayout->addWidget(titleBlock);
+  headerLayout->addWidget(pathBlock, 1);
+  headerLayout->addWidget(actions);
 
-  updateButton_ = new QPushButton("Update Editor", this);
-  toolbar->addWidget(updateButton_);
-  connect(updateButton_, &QPushButton::clicked, this, &MainWindow::updateEditor);
+  connect(refreshButton_, &QToolButton::clicked, this, &MainWindow::refreshFiles);
+  connect(launchButton_, &QToolButton::clicked, this, &MainWindow::launchProject);
+  connect(stopButton_, &QToolButton::clicked, this, &MainWindow::stopProject);
+  connect(killButton_, &QToolButton::clicked, this, &MainWindow::killStaleServer);
+  connect(restartTerminalButton_, &QToolButton::clicked, this, &MainWindow::restartTerminal);
+  connect(updateButton_, &QToolButton::clicked, this, &MainWindow::updateEditor);
+  connect(reloadButton_, &QToolButton::clicked, this, &MainWindow::reloadViewport);
 
-  auto* reloadAction = toolbar->addAction("Reload Viewport");
-  connect(reloadAction, &QAction::triggered, this, &MainWindow::reloadViewport);
-
-  rootSplitter_ = new QSplitter(Qt::Horizontal, this);
+  rootSplitter_ = new QSplitter(Qt::Horizontal, central);
+  rootSplitter_->setObjectName("workspaceSplitter");
   explorer_ = new RemoteExplorerWidget(rootSplitter_);
   connect(explorer_, &RemoteExplorerWidget::fileActivated, this, &MainWindow::previewPath);
   connect(explorer_, &RemoteExplorerWidget::statusMessage, this, [this](const QString& message) { setStatus(message); });
 
   rightTabs_ = new QTabWidget(rootSplitter_);
+  rightTabs_->setDocumentMode(true);
+  rightTabs_->setUsesScrollButtons(false);
   viewport_ = new QWebEngineView(rightTabs_);
   rightTabs_->addTab(viewport_, "Viewport");
 
@@ -157,8 +207,13 @@ void MainWindow::buildUi() {
 
   rootSplitter_->setStretchFactor(0, 1);
   rootSplitter_->setStretchFactor(1, 3);
+  rootSplitter_->setHandleWidth(1);
+  rootSplitter_->setChildrenCollapsible(false);
 
   bottomTabs_ = new QTabWidget(this);
+  bottomTabs_->setObjectName("bottomTabs");
+  bottomTabs_->setDocumentMode(true);
+  bottomTabs_->setUsesScrollButtons(false);
   terminal_ = new TerminalWidget(bottomTabs_);
   log_ = new QPlainTextEdit(bottomTabs_);
   log_->setReadOnly(true);
@@ -167,9 +222,7 @@ void MainWindow::buildUi() {
   bottomTabs_->addTab(log_, "Logs");
   bottomTabs_->setMaximumHeight(240);
 
-  auto* central = new QWidget(this);
-  auto* layout = new QVBoxLayout(central);
-  layout->setContentsMargins(6, 6, 6, 6);
+  layout->addWidget(header_);
   layout->addWidget(rootSplitter_, 1);
   layout->addWidget(bottomTabs_);
   setCentralWidget(central);
@@ -223,8 +276,12 @@ void MainWindow::applyCommandLineOverrides(const QString& remoteTarget, const QS
   if (!remotePath.isEmpty()) profile_.project.remotePath = remotePath;
 }
 
+void MainWindow::syncProjectPath() {
+  profile_.project.remotePath = remotePathEdit_ ? remotePathEdit_->text().trimmed() : profile_.project.remotePath;
+}
+
 void MainWindow::launchProject() {
-  profile_.project.remotePath = remotePathEdit_->text().trimmed();
+  syncProjectPath();
   cleanupProcess(devProcess_);
   cleanupProcess(tunnelProcess_);
   cleanupProcess(killProcess_);
@@ -284,7 +341,7 @@ void MainWindow::killStaleServer() {
 }
 
 void MainWindow::restartTerminal() {
-  profile_.project.remotePath = remotePathEdit_->text().trimmed();
+  syncProjectPath();
   if (terminal_) terminal_->start(profile_.ssh, profile_.project.remotePath);
 }
 
@@ -371,7 +428,7 @@ void MainWindow::updateEditor() {
 }
 
 void MainWindow::refreshFiles() {
-  profile_.project.remotePath = remotePathEdit_->text().trimmed();
+  syncProjectPath();
   cleanupProcess(listProcess_);
   if (explorer_) {
     explorer_->setContext(profile_.ssh, profile_.project.remotePath, profile_.project.ignore);

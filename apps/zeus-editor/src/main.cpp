@@ -1,3 +1,4 @@
+#include "AppTheme.h"
 #include "MainWindow.h"
 
 #include <QApplication>
@@ -8,6 +9,7 @@ int main(int argc, char* argv[]) {
   QApplication app(argc, argv);
   QApplication::setApplicationName("Zeus Editor");
   QApplication::setOrganizationName("Zeus");
+  applyEditorTheme(app);
 
   QCommandLineParser parser;
   parser.setApplicationDescription("Native Zeus visual editor");

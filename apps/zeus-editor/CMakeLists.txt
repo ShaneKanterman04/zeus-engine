@@ -11,6 +11,8 @@ find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets WebEngineWidgets WebCh
 qt_standard_project_setup()
 
 qt_add_executable(zeus-editor
+  src/AppTheme.cpp
+  src/AppTheme.h
   src/main.cpp
   src/MainWindow.cpp
   src/MainWindow.h

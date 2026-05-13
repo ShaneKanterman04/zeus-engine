@@ -15,13 +15,13 @@
 class QLabel;
 class QLineEdit;
 class QPlainTextEdit;
-class QPushButton;
 class QShortcut;
 class QTabWidget;
 class QTextEdit;
 class QTreeWidget;
 class QWebEngineView;
 class QSplitter;
+class QToolButton;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -45,6 +45,7 @@ class MainWindow : public QMainWindow {
   void loadDirectory(QTreeWidgetItem* item);
   void previewFile(QTreeWidgetItem* item, int column);
   void previewPath(const QString& path);
+  void syncProjectPath();
 
  private:
   void buildUi();
@@ -73,10 +74,13 @@ class MainWindow : public QMainWindow {
 
   QLineEdit* remotePathEdit_ = nullptr;
   QLabel* statusLabel_ = nullptr;
-  QPushButton* launchButton_ = nullptr;
-  QPushButton* stopButton_ = nullptr;
-  QPushButton* killButton_ = nullptr;
-  QPushButton* updateButton_ = nullptr;
+  QToolButton* launchButton_ = nullptr;
+  QToolButton* stopButton_ = nullptr;
+  QToolButton* killButton_ = nullptr;
+  QToolButton* updateButton_ = nullptr;
+  QToolButton* refreshButton_ = nullptr;
+  QToolButton* reloadButton_ = nullptr;
+  QToolButton* restartTerminalButton_ = nullptr;
   QShortcut* terminalShortcut_ = nullptr;
   QShortcut* viewportShortcut_ = nullptr;
   QShortcut* defaultViewShortcut_ = nullptr;
@@ -89,6 +93,10 @@ class MainWindow : public QMainWindow {
   QWidget* terminalPane_ = nullptr;
   QWidget* viewportPane_ = nullptr;
   QWidget* defaultPane_ = nullptr;
+  QWidget* header_ = nullptr;
+  QLabel* titleLabel_ = nullptr;
+  QLabel* subtitleLabel_ = nullptr;
+  QLabel* pathLabel_ = nullptr;
   AssetBrowserWidget* assetBrowser_ = nullptr;
   QTextEdit* textPreview_ = nullptr;
   QLabel* imagePreview_ = nullptr;

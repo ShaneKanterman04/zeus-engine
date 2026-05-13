@@ -11,11 +11,12 @@
 #include <QListView>
 #include <QListWidget>
 #include <QPixmap>
-#include <QPushButton>
 #include <QScrollArea>
 #include <QSplitter>
 #include <QSize>
 #include <QTextEdit>
+#include <QToolButton>
+#include <QStyle>
 #include <QVBoxLayout>
 
 namespace {
@@ -233,7 +234,7 @@ void AssetBrowserWidget::handleDetailError(QProcess::ProcessError error) {
 void AssetBrowserWidget::buildUi() {
   auto* root = new QVBoxLayout(this);
   root->setContentsMargins(0, 0, 0, 0);
-  root->setSpacing(6);
+  root->setSpacing(8);
 
   auto* controls = new QGridLayout();
   controls->setContentsMargins(0, 0, 0, 0);
@@ -242,11 +243,16 @@ void AssetBrowserWidget::buildUi() {
 
   searchEdit_ = new QLineEdit(this);
   searchEdit_->setPlaceholderText("Search assets");
-  refreshButton_ = new QPushButton("Refresh", this);
+  refreshButton_ = new QToolButton(this);
+  refreshButton_->setAutoRaise(true);
+  refreshButton_->setToolButtonStyle(Qt::ToolButtonIconOnly);
+  refreshButton_->setIcon(style()->standardIcon(QStyle::SP_BrowserReload));
+  refreshButton_->setToolTip("Refresh assets");
   statusLabel_ = new QLabel(this);
-  statusLabel_->setMinimumWidth(220);
+  statusLabel_->setMinimumWidth(180);
+  statusLabel_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
-  controls->addWidget(new QLabel("Filter", this), 0, 0);
+  controls->addWidget(new QLabel("Assets", this), 0, 0);
   controls->addWidget(searchEdit_, 0, 1);
   controls->addWidget(refreshButton_, 0, 2);
   controls->addWidget(statusLabel_, 0, 3);
@@ -270,15 +276,16 @@ void AssetBrowserWidget::buildUi() {
   detailLayout->setSpacing(6);
 
   previewTitle_ = new QLabel("No asset selected", detailPane);
+  previewTitle_->setObjectName("panelHeading");
   previewTitle_->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
   previewScroll_ = new QScrollArea(detailPane);
   previewScroll_->setWidgetResizable(true);
   previewScroll_->setFrameShape(QFrame::StyledPanel);
   previewImage_ = new QLabel(previewScroll_);
+  previewImage_->setObjectName("assetPreview");
   previewImage_->setAlignment(Qt::AlignCenter);
   previewImage_->setMinimumSize(360, 260);
-  previewImage_->setStyleSheet("background: #111318; color: #9ca3af;");
   previewImage_->setText("Select an asset");
   previewScroll_->setWidget(previewImage_);
 
@@ -296,7 +303,7 @@ void AssetBrowserWidget::buildUi() {
   root->addLayout(controls);
   root->addWidget(splitter, 1);
 
-  connect(refreshButton_, &QPushButton::clicked, this, &AssetBrowserWidget::handleRefreshClicked);
+  connect(refreshButton_, &QToolButton::clicked, this, &AssetBrowserWidget::handleRefreshClicked);
   connect(searchEdit_, &QLineEdit::textChanged, this, &AssetBrowserWidget::handleSearchChanged);
   connect(grid_, &QListWidget::itemSelectionChanged, this, &AssetBrowserWidget::handleSelectionChanged);
 
