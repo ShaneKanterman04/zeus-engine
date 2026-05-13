@@ -13,6 +13,8 @@ qt_standard_project_setup()
 qt_add_executable(zeus-editor
   src/AppTheme.cpp
   src/AppTheme.h
+  src/AssetStudioWidget.cpp
+  src/AssetStudioWidget.h
   src/EditorIcons.cpp
   src/EditorIcons.h
   src/main.cpp

@@ -122,7 +122,17 @@ void MainWindow::buildUi() {
   layout->setContentsMargins(12, 12, 12, 12);
   layout->setSpacing(12);
 
-  header_ = new QWidget(central);
+  topTabs_ = new QTabWidget(central);
+  topTabs_->setObjectName("topTabs");
+  topTabs_->setDocumentMode(true);
+  topTabs_->setUsesScrollButtons(false);
+
+  editorPage_ = new QWidget(topTabs_);
+  auto* editorLayout = new QVBoxLayout(editorPage_);
+  editorLayout->setContentsMargins(0, 0, 0, 0);
+  editorLayout->setSpacing(12);
+
+  header_ = new QWidget(editorPage_);
   header_->setObjectName("editorHeader");
   auto* headerLayout = new QHBoxLayout(header_);
   headerLayout->setContentsMargins(12, 12, 12, 12);
@@ -185,7 +195,7 @@ void MainWindow::buildUi() {
   connect(updateButton_, &QToolButton::clicked, this, &MainWindow::updateEditor);
   connect(reloadButton_, &QToolButton::clicked, this, &MainWindow::reloadViewport);
 
-  rootSplitter_ = new QSplitter(Qt::Horizontal, central);
+  rootSplitter_ = new QSplitter(Qt::Horizontal, editorPage_);
   rootSplitter_->setObjectName("workspaceSplitter");
 
   explorer_ = new RemoteExplorerWidget(rootSplitter_);
@@ -217,7 +227,7 @@ void MainWindow::buildUi() {
   rootSplitter_->setHandleWidth(1);
   rootSplitter_->setChildrenCollapsible(false);
 
-  bottomTabs_ = new QTabWidget(this);
+  bottomTabs_ = new QTabWidget(editorPage_);
   bottomTabs_->setObjectName("bottomTabs");
   bottomTabs_->setDocumentMode(true);
   bottomTabs_->setUsesScrollButtons(false);
@@ -229,9 +239,15 @@ void MainWindow::buildUi() {
   bottomTabs_->addTab(log_, "Logs");
   bottomTabs_->setMaximumHeight(240);
 
-  layout->addWidget(header_);
-  layout->addWidget(rootSplitter_, 1);
-  layout->addWidget(bottomTabs_);
+  editorLayout->addWidget(header_);
+  editorLayout->addWidget(rootSplitter_, 1);
+  editorLayout->addWidget(bottomTabs_);
+
+  assetStudio_ = new AssetStudioWidget(topTabs_);
+  topTabs_->addTab(editorPage_, "Editor");
+  topTabs_->addTab(assetStudio_, "Asset Studio");
+
+  layout->addWidget(topTabs_, 1);
   setCentralWidget(central);
   buildMenus();
 
@@ -252,6 +268,11 @@ void MainWindow::buildUi() {
   setStatus(QString("Profile %1: %2").arg(profile_.name, sshTarget(profile_.ssh)));
   if (assetBrowser_) assetBrowser_->setContext(profile_.ssh, profile_.project.remotePath, profile_.project.ignore);
   if (explorer_) explorer_->setContext(profile_.ssh, profile_.project.remotePath, profile_.project.ignore);
+  if (assetStudio_) {
+    assetStudio_->setContext(profile_.ssh, profile_.project.remotePath);
+    connect(assetStudio_, &AssetStudioWidget::statusMessage, this, [this](const QString& message) { setStatus(message); });
+    connect(assetStudio_, &AssetStudioWidget::assetsChanged, this, &MainWindow::refreshFiles);
+  }
   setWorkspaceMode(WorkspaceDefault);
   restartTerminal();
   bottomTabs_->setCurrentWidget(terminal_);
@@ -299,6 +320,17 @@ void MainWindow::buildMenus() {
   connect(reloadViewportAction, &QAction::triggered, this, &MainWindow::reloadViewport);
 
   auto* panelsMenu = menuBar()->addMenu("&Panels");
+  auto* editorTabAction = panelsMenu->addAction("Editor");
+  connect(editorTabAction, &QAction::triggered, this, [this]() {
+    if (topTabs_) topTabs_->setCurrentWidget(editorPage_);
+  });
+  auto* assetStudioAction = panelsMenu->addAction("Asset Studio");
+  connect(assetStudioAction, &QAction::triggered, this, [this]() {
+    if (topTabs_) topTabs_->setCurrentWidget(assetStudio_);
+    if (assetStudio_) assetStudio_->focusPrompt();
+  });
+  panelsMenu->addSeparator();
+
   auto* defaultLayoutAction = panelsMenu->addAction("Default Layout\tCtrl+`");
   connect(defaultLayoutAction, &QAction::triggered, this, &MainWindow::restoreDefaultView);
   panelsMenu->addSeparator();
@@ -341,6 +373,15 @@ void MainWindow::buildMenus() {
   connect(terminalFullscreenAction, &QAction::triggered, this, &MainWindow::toggleTerminalFullscreen);
   auto* viewportFullscreenAction = panelsMenu->addAction("Viewport Focus Mode\tCtrl+2");
   connect(viewportFullscreenAction, &QAction::triggered, this, &MainWindow::toggleViewportFullscreen);
+
+  auto* assetsMenu = menuBar()->addMenu("&Assets");
+  auto* openAssetStudioAction = assetsMenu->addAction("New Concept Sheet");
+  connect(openAssetStudioAction, &QAction::triggered, this, [this]() {
+    if (topTabs_) topTabs_->setCurrentWidget(assetStudio_);
+    if (assetStudio_) assetStudio_->focusPrompt();
+  });
+  auto* refreshAssetsAction = assetsMenu->addAction("Refresh Assets");
+  connect(refreshAssetsAction, &QAction::triggered, this, &MainWindow::refreshFiles);
 }
 
 void MainWindow::loadProfile(const QString& profileId) {
@@ -373,6 +414,7 @@ void MainWindow::applyCommandLineOverrides(const QString& remoteTarget, const QS
 
 void MainWindow::syncProjectPath() {
   profile_.project.remotePath = remotePathEdit_ ? remotePathEdit_->text().trimmed() : profile_.project.remotePath;
+  if (assetStudio_) assetStudio_->setContext(profile_.ssh, profile_.project.remotePath);
 }
 
 void MainWindow::launchProject() {
@@ -533,6 +575,7 @@ void MainWindow::refreshFiles() {
     assetBrowser_->setContext(profile_.ssh, profile_.project.remotePath, profile_.project.ignore);
     assetBrowser_->refresh();
   }
+  if (assetStudio_) assetStudio_->setContext(profile_.ssh, profile_.project.remotePath);
 }
 
 void MainWindow::loadDirectory(QTreeWidgetItem* item) {

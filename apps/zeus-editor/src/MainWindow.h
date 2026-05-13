@@ -3,6 +3,7 @@
 #include "Profile.h"
 #include "SshRunner.h"
 #include "AssetBrowserWidget.h"
+#include "AssetStudioWidget.h"
 #include "RemoteExplorerWidget.h"
 #include "TerminalWidget.h"
 
@@ -90,7 +91,9 @@ class MainWindow : public QMainWindow {
   QWebEngineView* viewport_ = nullptr;
   QTabWidget* rightTabs_ = nullptr;
   QTabWidget* bottomTabs_ = nullptr;
+  QTabWidget* topTabs_ = nullptr;
   QSplitter* rootSplitter_ = nullptr;
+  QWidget* editorPage_ = nullptr;
   QWidget* terminalPane_ = nullptr;
   QWidget* viewportPane_ = nullptr;
   QWidget* defaultPane_ = nullptr;
@@ -103,6 +106,7 @@ class MainWindow : public QMainWindow {
   QLabel* imagePreview_ = nullptr;
   QPlainTextEdit* log_ = nullptr;
   TerminalWidget* terminal_ = nullptr;
+  AssetStudioWidget* assetStudio_ = nullptr;
 
   int workspaceMode_ = 0;
 };
