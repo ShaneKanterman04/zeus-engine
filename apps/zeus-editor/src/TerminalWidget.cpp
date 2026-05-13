@@ -27,7 +27,7 @@ void TerminalWidget::start(const SshProfile& ssh, const QString& remotePath) {
   process_ = new QProcess(this);
   auto args = sshBaseArgs(ssh);
   args << "-tt"
-       << QString("cd %1 && TERM=dumb NO_COLOR=1 CLICOLOR=0 exec ${SHELL:-/bin/sh} -i").arg(shellQuote(remotePath));
+       << QString("cd %1 && TERM=xterm-256color COLORTERM=truecolor exec ${SHELL:-/bin/sh} -i").arg(shellQuote(remotePath));
   process_->setProgram("ssh");
   process_->setArguments(args);
   process_->setProcessChannelMode(QProcess::MergedChannels);

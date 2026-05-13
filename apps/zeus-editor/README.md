@@ -9,6 +9,7 @@ V1 is a read-only remote editor:
 - Launch the project dev server over SSH.
 - Open the running project in an embedded Qt WebEngine viewport through a local SSH tunnel.
 - Use a docked SSH terminal that starts in the remote project directory.
+- Open a real local terminal emulator in the project directory for full-screen CLI tools such as Codex.
 
 ## Prerequisites
 
@@ -62,6 +63,10 @@ npm run editor:update
 
 Inside the app, press **Update Editor**. The updater pulls the latest repo changes, runs `npm install`, and rebuilds the editor. Restart the app after it completes.
 The app button now relaunches the editor automatically after a successful update.
+
+## Codex TUI
+
+Use **Open Strong Terminal** for full-screen terminal apps. The docked terminal is still a basic shell surface, but the external terminal opens the remote project directory in a real emulator.
 
 ## Kill Stale Project Server
 
