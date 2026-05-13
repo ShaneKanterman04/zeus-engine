@@ -3,7 +3,6 @@
 #include "Profile.h"
 #include "SshRunner.h"
 #include "AssetBrowserWidget.h"
-#include "JobPanelWidget.h"
 #include "RemoteExplorerWidget.h"
 #include "TerminalWidget.h"
 
@@ -59,7 +58,6 @@ class MainWindow : public QMainWindow {
   void addDirectoryPlaceholder(QTreeWidgetItem* item);
   void openTunnelAndViewport();
   void cleanupProcess(QProcess*& process);
-  QString engineRemotePath() const;
   QString selectedPath() const;
   int remotePort() const;
   int localPort() const;
@@ -105,7 +103,6 @@ class MainWindow : public QMainWindow {
   QLabel* imagePreview_ = nullptr;
   QPlainTextEdit* log_ = nullptr;
   TerminalWidget* terminal_ = nullptr;
-  JobPanelWidget* jobs_ = nullptr;
 
   int workspaceMode_ = 0;
 };

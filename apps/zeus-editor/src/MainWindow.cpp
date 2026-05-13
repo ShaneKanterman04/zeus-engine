@@ -10,7 +10,6 @@
 #include <QFrame>
 #include <QJsonArray>
 #include <QJsonDocument>
-#include <QDir>
 #include <QHeaderView>
 #include <QImage>
 #include <QHBoxLayout>
@@ -193,19 +192,6 @@ void MainWindow::buildUi() {
   connect(explorer_, &RemoteExplorerWidget::fileActivated, this, &MainWindow::previewPath);
   connect(explorer_, &RemoteExplorerWidget::statusMessage, this, [this](const QString& message) { setStatus(message); });
 
-  bottomTabs_ = new QTabWidget(rootSplitter_);
-  bottomTabs_->setObjectName("workspaceTabs");
-  bottomTabs_->setDocumentMode(true);
-  bottomTabs_->setUsesScrollButtons(false);
-  terminal_ = new TerminalWidget(bottomTabs_);
-  jobs_ = new JobPanelWidget(bottomTabs_);
-  log_ = new QPlainTextEdit(bottomTabs_);
-  log_->setReadOnly(true);
-  log_->setMaximumBlockCount(2000);
-  bottomTabs_->addTab(terminal_, "Terminal");
-  bottomTabs_->addTab(jobs_, "Jobs");
-  bottomTabs_->addTab(log_, "Logs");
-
   rightTabs_ = new QTabWidget(rootSplitter_);
   rightTabs_->setDocumentMode(true);
   rightTabs_->setUsesScrollButtons(false);
@@ -227,13 +213,25 @@ void MainWindow::buildUi() {
   rightTabs_->addTab(assetBrowser_, "Assets");
 
   rootSplitter_->setStretchFactor(0, 1);
-  rootSplitter_->setStretchFactor(1, 4);
-  rootSplitter_->setStretchFactor(2, 3);
+  rootSplitter_->setStretchFactor(1, 3);
   rootSplitter_->setHandleWidth(1);
   rootSplitter_->setChildrenCollapsible(false);
 
+  bottomTabs_ = new QTabWidget(this);
+  bottomTabs_->setObjectName("bottomTabs");
+  bottomTabs_->setDocumentMode(true);
+  bottomTabs_->setUsesScrollButtons(false);
+  terminal_ = new TerminalWidget(bottomTabs_);
+  log_ = new QPlainTextEdit(bottomTabs_);
+  log_->setReadOnly(true);
+  log_->setMaximumBlockCount(2000);
+  bottomTabs_->addTab(terminal_, "Terminal");
+  bottomTabs_->addTab(log_, "Logs");
+  bottomTabs_->setMaximumHeight(240);
+
   layout->addWidget(header_);
   layout->addWidget(rootSplitter_, 1);
+  layout->addWidget(bottomTabs_);
   setCentralWidget(central);
   buildMenus();
 
@@ -254,18 +252,6 @@ void MainWindow::buildUi() {
   setStatus(QString("Profile %1: %2").arg(profile_.name, sshTarget(profile_.ssh)));
   if (assetBrowser_) assetBrowser_->setContext(profile_.ssh, profile_.project.remotePath, profile_.project.ignore);
   if (explorer_) explorer_->setContext(profile_.ssh, profile_.project.remotePath, profile_.project.ignore);
-  if (jobs_) {
-    jobs_->setContext(profile_.ssh, profile_.project.remotePath, engineRemotePath());
-    connect(jobs_, &JobPanelWidget::jobStarted, this, [this](const QString& label) {
-      bottomTabs_->setCurrentWidget(jobs_);
-      setStatus(QString("Running %1").arg(label));
-      appendLog(QString("Job started: %1").arg(label));
-    });
-    connect(jobs_, &JobPanelWidget::jobFinished, this, [this](const QString& label, int code) {
-      setStatus(QString("%1 finished with exit code %2").arg(label).arg(code));
-      appendLog(QString("Job finished: %1 code=%2").arg(label).arg(code));
-    });
-  }
   setWorkspaceMode(WorkspaceDefault);
   restartTerminal();
   bottomTabs_->setCurrentWidget(terminal_);
@@ -324,12 +310,6 @@ void MainWindow::buildMenus() {
     setWorkspaceMode(WorkspaceDefault);
     bottomTabs_->setCurrentWidget(terminal_);
     terminal_->requestFocusTerminal();
-  });
-  auto* jobsAction = panelsMenu->addAction("Jobs");
-  connect(jobsAction, &QAction::triggered, this, [this]() {
-    setWorkspaceMode(WorkspaceDefault);
-    bottomTabs_->setCurrentWidget(jobs_);
-    jobs_->setFocus();
   });
   auto* logsAction = panelsMenu->addAction("Logs");
   connect(logsAction, &QAction::triggered, this, [this]() {
@@ -398,7 +378,6 @@ void MainWindow::applyCommandLineOverrides(const QString& remoteTarget, const QS
 
 void MainWindow::syncProjectPath() {
   profile_.project.remotePath = remotePathEdit_ ? remotePathEdit_->text().trimmed() : profile_.project.remotePath;
-  if (jobs_) jobs_->setContext(profile_.ssh, profile_.project.remotePath, engineRemotePath());
 }
 
 void MainWindow::launchProject() {
@@ -488,28 +467,25 @@ void MainWindow::setWorkspaceMode(int mode) {
 
   switch (workspaceMode_) {
     case WorkspaceTerminalFullscreen:
-      rootSplitter_->show();
-      explorer_->hide();
-      rightTabs_->hide();
+      rootSplitter_->hide();
       bottomTabs_->show();
+      bottomTabs_->setMaximumHeight(QWIDGETSIZE_MAX);
       bottomTabs_->setCurrentWidget(terminal_);
       terminal_->requestFocusTerminal();
       setStatus("Terminal fullscreen");
       break;
     case WorkspaceViewportFullscreen:
-      rootSplitter_->show();
-      explorer_->hide();
       bottomTabs_->hide();
-      rightTabs_->show();
+      rootSplitter_->show();
+      bottomTabs_->setMaximumHeight(240);
       rightTabs_->setCurrentWidget(viewport_);
       viewport_->setFocus();
       setStatus("Viewport fullscreen");
       break;
     default:
       rootSplitter_->show();
-      explorer_->show();
       bottomTabs_->show();
-      rightTabs_->show();
+      bottomTabs_->setMaximumHeight(240);
       setStatus(QString("Profile %1: %2").arg(profile_.name, sshTarget(profile_.ssh)));
       break;
   }
@@ -562,7 +538,6 @@ void MainWindow::refreshFiles() {
     assetBrowser_->setContext(profile_.ssh, profile_.project.remotePath, profile_.project.ignore);
     assetBrowser_->refresh();
   }
-  if (jobs_) jobs_->setContext(profile_.ssh, profile_.project.remotePath, engineRemotePath());
 }
 
 void MainWindow::loadDirectory(QTreeWidgetItem* item) {
@@ -681,15 +656,6 @@ void MainWindow::cleanupProcess(QProcess*& process) {
   }
   process->deleteLater();
   process = nullptr;
-}
-
-QString MainWindow::engineRemotePath() const {
-  const auto configured = profile_.project.engineRemotePath.trimmed();
-  if (!configured.isEmpty()) return configured;
-  QDir projectDir(profile_.project.remotePath);
-  projectDir.cdUp();
-  const auto sibling = projectDir.filePath("zeus-engine");
-  return sibling.isEmpty() ? QString("/home/shane/Projects/zeus-engine") : sibling;
 }
 
 QString MainWindow::selectedPath() const {

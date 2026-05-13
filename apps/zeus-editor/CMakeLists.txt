@@ -15,8 +15,6 @@ qt_add_executable(zeus-editor
   src/AppTheme.h
   src/EditorIcons.cpp
   src/EditorIcons.h
-  src/JobPanelWidget.cpp
-  src/JobPanelWidget.h
   src/main.cpp
   src/MainWindow.cpp
   src/MainWindow.h

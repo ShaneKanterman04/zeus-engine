@@ -54,7 +54,6 @@ EditorProfile parseProfile(const QJsonObject& object) {
 
   const auto project = object.value("project").toObject();
   profile.project.remotePath = stringValue(project, "remotePath", profile.project.remotePath);
-  profile.project.engineRemotePath = stringValue(project, "engineRemotePath", profile.project.engineRemotePath);
   profile.project.forwardPorts = intVectorValue(project, "forwardPorts", profile.project.forwardPorts);
   profile.project.ignore = stringListValue(project, "ignore", profile.project.ignore);
 
@@ -89,7 +88,6 @@ QJsonObject profileToJson(const EditorProfile& profile) {
 
   QJsonObject project;
   project["remotePath"] = profile.project.remotePath;
-  project["engineRemotePath"] = profile.project.engineRemotePath;
   project["devCommand"] = dev;
   project["forwardPorts"] = ports;
   project["ignore"] = ignore;
