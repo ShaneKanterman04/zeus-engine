@@ -87,7 +87,7 @@ void TerminalWidget::keyPressEvent(QKeyEvent* event) {
   }
 
   const auto text = event->text();
-  if (text.isEmpty() || text.at(0).isControl()) return;
+  if (text.isEmpty() || text.at(0).unicode() < 0x20) return;
   currentInput_ += text;
   insertPlainText(text);
 }
