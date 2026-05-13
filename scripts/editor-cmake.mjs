@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
-import { mkdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, readFile, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 const action = process.argv[2] ?? "build";
@@ -13,7 +14,7 @@ const restartArgs = valueFor("--restart-args-json");
 switch (action) {
   case "configure":
     await mkdir(buildDir, { recursive: true });
-    await run("cmake", ["-S", sourceDir, "-B", buildDir, "-G", "Ninja"]);
+    await run("cmake", ["-S", sourceDir, "-B", buildDir, "-G", "Ninja", ...qt6DirArgs()]);
     break;
   case "build":
     await ensureConfigured();
@@ -45,7 +46,8 @@ switch (action) {
 
 async function ensureConfigured() {
   await mkdir(buildDir, { recursive: true });
-  await run("cmake", ["-S", sourceDir, "-B", buildDir, "-G", "Ninja"]);
+  await resetStaleQtCache();
+  await run("cmake", ["-S", sourceDir, "-B", buildDir, "-G", "Ninja", ...qt6DirArgs()]);
 }
 
 function run(command, args, options = {}) {
@@ -84,4 +86,39 @@ function valueFor(flag) {
   const index = process.argv.indexOf(flag);
   if (index === -1) return undefined;
   return process.argv[index + 1];
+}
+
+function qt6DirArgs() {
+  const configuredDir = process.env.ZEUS_QT6_DIR?.trim();
+  if (configuredDir) {
+    return [`-DQt6_DIR=${configuredDir}`];
+  }
+
+  const systemQtDir = "/usr/lib/x86_64-linux-gnu/cmake/Qt6";
+  if (existsSync(join(systemQtDir, "Qt6Config.cmake"))) {
+    return [`-DQt6_DIR=${systemQtDir}`];
+  }
+
+  return [];
+}
+
+async function resetStaleQtCache() {
+  const cachePath = join(buildDir, "CMakeCache.txt");
+  let cacheText = "";
+  try {
+    cacheText = await readFile(cachePath, "utf8");
+  } catch {
+    return;
+  }
+
+  const selectedDir = process.env.ZEUS_QT6_DIR?.trim() || "/usr/lib/x86_64-linux-gnu/cmake/Qt6";
+  const qtDirLines = cacheText
+    .split("\n")
+    .filter((line) => /^Qt6[A-Za-z0-9_]*_DIR:PATH=/.test(line));
+
+  const cacheUsesSelectedQt = qtDirLines.every((line) => line.slice(line.indexOf("=") + 1).startsWith(selectedDir));
+  if (cacheUsesSelectedQt) return;
+
+  await rm(cachePath, { force: true });
+  await rm(join(buildDir, "CMakeFiles"), { recursive: true, force: true });
 }

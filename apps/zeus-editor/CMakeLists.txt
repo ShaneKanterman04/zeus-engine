@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets WebEngineWidgets WebChannel Network)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets WebEngineWidgets WebChannel Network)
 
 qt_standard_project_setup()
 
@@ -53,9 +53,11 @@ install(TARGETS zeus-editor
   RUNTIME DESTINATION bin
 )
 
-qt_generate_deploy_app_script(
-  TARGET zeus-editor
-  OUTPUT_SCRIPT deploy_script
-  NO_UNSUPPORTED_PLATFORM_ERROR
-)
-install(SCRIPT ${deploy_script})
+if(Qt6_VERSION VERSION_GREATER_EQUAL "6.5.0")
+  qt_generate_deploy_app_script(
+    TARGET zeus-editor
+    OUTPUT_SCRIPT deploy_script
+    NO_UNSUPPORTED_PLATFORM_ERROR
+  )
+  install(SCRIPT ${deploy_script})
+endif()

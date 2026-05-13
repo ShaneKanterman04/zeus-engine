@@ -83,7 +83,7 @@ void RemoteExplorerWidget::handleRefreshClicked() {
 
 void RemoteExplorerWidget::handleUpClicked() {
   if (currentPath_.isEmpty()) return;
-  const auto parent = QFileInfo(currentPath_).dir().absolutePath();
+  const auto parent = QFileInfo(currentPath_).absolutePath();
   loadDirectory(parent, true);
 }
 
