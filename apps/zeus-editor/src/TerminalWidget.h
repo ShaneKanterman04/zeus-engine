@@ -1,12 +1,16 @@
 #pragma once
 
 #include "Profile.h"
+#include "TerminalBridge.h"
+#include "TerminalSession.h"
 
-#include <QPlainTextEdit>
-#include <QProcess>
 #include <QString>
+#include <QWidget>
 
-class TerminalWidget : public QPlainTextEdit {
+class QTabWidget;
+class QWebEngineView;
+
+class TerminalWidget : public QWidget {
   Q_OBJECT
 
  public:
@@ -15,16 +19,25 @@ class TerminalWidget : public QPlainTextEdit {
 
   void start(const SshProfile& ssh, const QString& remotePath);
   void stop();
+  void requestFocusTerminal();
 
- protected:
-  void keyPressEvent(QKeyEvent* event) override;
+ private slots:
+  void handleTerminalReady();
+  void handleTerminalOutput(const QByteArray& data);
+  void handleTerminalExit(int code);
 
  private:
-  void appendProcessOutput(const QByteArray& output);
-  void writeCommand();
+  void buildUi();
+  void loadTerminalPage();
+  void flushPendingOutput();
+  void appendOutputChunk(const QByteArray& data);
 
-  QProcess* process_ = nullptr;
-  QString currentInput_;
+  TerminalBridge* bridge_ = nullptr;
+  TerminalSession* session_ = nullptr;
+  QWebEngineView* view_ = nullptr;
+  QByteArray pendingOutput_;
+  bool pageReady_ = false;
+  bool sessionQueued_ = false;
+  SshProfile ssh_;
+  QString remotePath_;
 };
-
-QString stripTerminalOutput(const QString& text);

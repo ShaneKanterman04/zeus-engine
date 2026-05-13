@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets WebEngineWidgets Network)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets WebEngineWidgets WebChannel Network)
 
 qt_standard_project_setup()
 
@@ -27,6 +27,7 @@ target_link_libraries(zeus-editor PRIVATE
   Qt6::Gui
   Qt6::Widgets
   Qt6::WebEngineWidgets
+  Qt6::WebChannel
   Qt6::Network
 )
 

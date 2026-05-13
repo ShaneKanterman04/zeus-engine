@@ -117,9 +117,6 @@ void MainWindow::buildUi() {
   auto* terminalAction = toolbar->addAction("Restart Terminal");
   connect(terminalAction, &QAction::triggered, this, &MainWindow::restartTerminal);
 
-  auto* strongTerminalAction = toolbar->addAction("Open Strong Terminal");
-  connect(strongTerminalAction, &QAction::triggered, this, &MainWindow::openStrongTerminal);
-
   updateButton_ = new QPushButton("Update Editor", this);
   toolbar->addWidget(updateButton_);
   connect(updateButton_, &QPushButton::clicked, this, &MainWindow::updateEditor);
@@ -265,29 +262,6 @@ void MainWindow::killStaleServer() {
 void MainWindow::restartTerminal() {
   profile_.project.remotePath = remotePathEdit_->text().trimmed();
   if (terminal_) terminal_->start(profile_.ssh, profile_.project.remotePath);
-}
-
-void MainWindow::openStrongTerminal() {
-  profile_.project.remotePath = remotePathEdit_->text().trimmed();
-  const auto remoteCommand = QString("cd %1 && exec ${SHELL:-/bin/sh} -i").arg(shellQuote(profile_.project.remotePath));
-  const auto sshCommand = QString("ssh %1 -tt %2").arg(shellQuote(sshTarget(profile_.ssh)), shellQuote(remoteCommand));
-  const QList<QPair<QString, QStringList>> launchers = {
-      {"gnome-terminal", {"--", "sh", "-lc", sshCommand}},
-      {"konsole", {"-e", "sh", "-lc", sshCommand}},
-      {"xfce4-terminal", {"-e", "sh", "-lc", sshCommand}},
-      {"xterm", {"-e", "sh", "-lc", sshCommand}},
-      {"kitty", {"sh", "-lc", sshCommand}},
-  };
-  for (const auto& launcher : launchers) {
-    if (QStandardPaths::findExecutable(launcher.first).isEmpty()) continue;
-    if (QProcess::startDetached(launcher.first, launcher.second)) {
-      appendLog(QString("Opened strong terminal with %1").arg(launcher.first));
-      setStatus(QString("Strong terminal opened via %1").arg(launcher.first));
-      return;
-    }
-  }
-  appendLog("No supported terminal emulator found on this machine.");
-  setStatus("No external terminal emulator found");
 }
 
 void MainWindow::reloadViewport() {

@@ -32,7 +32,6 @@ class MainWindow : public QMainWindow {
   void stopProject();
   void killStaleServer();
   void restartTerminal();
-  void openStrongTerminal();
   void reloadViewport();
   void updateEditor();
   void refreshFiles();

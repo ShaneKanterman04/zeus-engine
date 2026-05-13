@@ -1,17 +1,76 @@
 #include "TerminalWidget.h"
 
-#include <QApplication>
-#include <QClipboard>
-#include <QKeyEvent>
-#include <QKeySequence>
-#include <QRegularExpression>
-#include <QScrollBar>
-#include <QTextCursor>
+#include <QVBoxLayout>
+#include <QWebEnginePage>
+#include <QWebEngineSettings>
+#include <QWebEngineView>
+#include <QWebChannel>
 
-TerminalWidget::TerminalWidget(QWidget* parent) : QPlainTextEdit(parent) {
-  setUndoRedoEnabled(false);
-  setLineWrapMode(QPlainTextEdit::NoWrap);
-  setPlaceholderText("Terminal");
+namespace {
+
+QString terminalHtml() {
+  return R"HTML(
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.5.0/css/xterm.min.css">
+  <style>
+    html, body { width: 100%; height: 100%; margin: 0; background: #0f1115; overflow: hidden; }
+    #terminal { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="terminal"></div>
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.5.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  <script>
+    const terminal = new Terminal({
+      cursorBlink: true,
+      fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace',
+      fontSize: 13,
+      theme: {
+        background: '#0f1115',
+        foreground: '#e5e7eb',
+        cursor: '#e5e7eb'
+      }
+    });
+    const fit = new FitAddon.FitAddon();
+    terminal.loadAddon(fit);
+    terminal.open(document.getElementById('terminal'));
+    new QWebChannel(qt.webChannelTransport, function(channel) {
+      const bridge = channel.objects.bridge;
+      bridge.outputReceived.connect(function(text) {
+        terminal.write(text);
+      });
+      bridge.exited.connect(function(code) {
+        terminal.writeln('');
+        terminal.writeln('Terminal exited: ' + code);
+      });
+      terminal.onData(function(data) {
+        bridge.sendInput(data);
+      });
+      window.addEventListener('resize', function() {
+        fit.fit();
+        bridge.resizeTerminal(terminal.cols, terminal.rows);
+      });
+      bridge.markReady();
+      fit.fit();
+      bridge.resizeTerminal(terminal.cols, terminal.rows);
+      terminal.focus();
+    });
+  </script>
+</body>
+</html>
+)HTML";
+}
+
+}  // namespace
+
+TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
+  buildUi();
 }
 
 TerminalWidget::~TerminalWidget() {
@@ -20,108 +79,84 @@ TerminalWidget::~TerminalWidget() {
 
 void TerminalWidget::start(const SshProfile& ssh, const QString& remotePath) {
   stop();
-  clear();
-  currentInput_.clear();
-  appendPlainText(QString("Connecting to %1 in %2...").arg(sshTarget(ssh), remotePath));
+  ssh_ = ssh;
+  remotePath_ = remotePath;
+  sessionQueued_ = true;
+  pendingOutput_.clear();
+  pageReady_ = false;
+  loadTerminalPage();
+}
 
-  process_ = new QProcess(this);
-  auto args = sshBaseArgs(ssh);
-  args << "-tt"
-       << QString("cd %1 && TERM=xterm-256color COLORTERM=truecolor exec ${SHELL:-/bin/sh} -i").arg(shellQuote(remotePath));
-  process_->setProgram("ssh");
-  process_->setArguments(args);
-  process_->setProcessChannelMode(QProcess::MergedChannels);
-  connect(process_, &QProcess::readyRead, this, [this]() {
-    appendProcessOutput(process_->readAll());
-  });
-  connect(process_, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this, [this](int code, QProcess::ExitStatus status) {
-    appendPlainText(QString("\nTerminal exited: code=%1 status=%2").arg(code).arg(status));
-    process_->deleteLater();
-    process_ = nullptr;
-  });
-  process_->start();
-  setFocus();
+void TerminalWidget::requestFocusTerminal() {
+  if (view_) view_->setFocus();
+}
+
+void TerminalWidget::handleTerminalReady() {
+  pageReady_ = true;
+  flushPendingOutput();
+  if (!sessionQueued_) return;
+  sessionQueued_ = false;
+  session_ = new TerminalSession(this);
+  connect(session_, &TerminalSession::outputReceived, this, &TerminalWidget::handleTerminalOutput);
+  connect(session_, &TerminalSession::exited, this, &TerminalWidget::handleTerminalExit);
+  connect(bridge_, &TerminalBridge::inputRequested, session_, [this](const QString& text) { session_->writeInput(text); });
+  connect(bridge_, &TerminalBridge::resizeRequested, session_, &TerminalSession::resize);
+  session_->start(ssh_, remotePath_);
+  bridge_->resizeTerminal(120, 40);
+  appendOutputChunk(QString("Connecting to %1 in %2...\r\n").arg(sshTarget(ssh_), remotePath_).toUtf8());
+}
+
+void TerminalWidget::handleTerminalOutput(const QByteArray& data) {
+  appendOutputChunk(data);
+}
+
+void TerminalWidget::handleTerminalExit(int code) {
+  if (bridge_) bridge_->pushExit(code);
+  appendOutputChunk(QString("\r\n").toUtf8());
+}
+
+void TerminalWidget::buildUi() {
+  auto* layout = new QVBoxLayout(this);
+  layout->setContentsMargins(0, 0, 0, 0);
+  bridge_ = new TerminalBridge(this);
+  view_ = new QWebEngineView(this);
+  view_->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessRemoteUrls, true);
+  view_->settings()->setAttribute(QWebEngineSettings::JavascriptCanAccessClipboard, true);
+  auto* channel = new QWebChannel(this);
+  channel->registerObject("bridge", bridge_);
+  view_->page()->setWebChannel(channel);
+  layout->addWidget(view_);
+
+  connect(bridge_, &TerminalBridge::ready, this, &TerminalWidget::handleTerminalReady);
+  loadTerminalPage();
+}
+
+void TerminalWidget::loadTerminalPage() {
+  if (!view_) return;
+  view_->setHtml(terminalHtml(), QUrl("qrc:/zeus-editor/terminal"));
+}
+
+void TerminalWidget::flushPendingOutput() {
+  if (pendingOutput_.isEmpty() || !pageReady_) return;
+  appendOutputChunk(pendingOutput_);
+  pendingOutput_.clear();
+}
+
+void TerminalWidget::appendOutputChunk(const QByteArray& data) {
+  if (!pageReady_) {
+    pendingOutput_.append(data);
+    return;
+  }
+  if (bridge_) bridge_->pushOutput(QString::fromUtf8(data));
 }
 
 void TerminalWidget::stop() {
-  if (!process_) return;
-  process_->disconnect(this);
-  if (process_->state() != QProcess::NotRunning) {
-    process_->write("exit\n");
-    process_->terminate();
-    if (!process_->waitForFinished(1000)) process_->kill();
+  if (session_) {
+    session_->stop();
+    session_->deleteLater();
+    session_ = nullptr;
   }
-  process_->deleteLater();
-  process_ = nullptr;
-}
-
-void TerminalWidget::keyPressEvent(QKeyEvent* event) {
-  if (!process_ || process_->state() == QProcess::NotRunning) {
-    QPlainTextEdit::keyPressEvent(event);
-    return;
-  }
-
-  if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
-    insertPlainText("\n");
-    writeCommand();
-    return;
-  }
-
-  if (event->key() == Qt::Key_Backspace) {
-    if (currentInput_.isEmpty()) return;
-    currentInput_.chop(1);
-    auto cursor = textCursor();
-    cursor.deletePreviousChar();
-    setTextCursor(cursor);
-    return;
-  }
-
-  if (event->matches(QKeySequence::Copy)) {
-    copy();
-    return;
-  }
-
-  if (event->matches(QKeySequence::Paste)) {
-    const auto pasted = QApplication::clipboard()->text();
-    currentInput_ += pasted;
-    insertPlainText(pasted);
-    return;
-  }
-
-  const auto text = event->text();
-  if (text.isEmpty() || text.at(0).unicode() < 0x20) return;
-  currentInput_ += text;
-  insertPlainText(text);
-}
-
-void TerminalWidget::appendProcessOutput(const QByteArray& output) {
-  moveCursor(QTextCursor::End);
-  insertPlainText(stripTerminalOutput(QString::fromLocal8Bit(output)));
-  verticalScrollBar()->setValue(verticalScrollBar()->maximum());
-}
-
-void TerminalWidget::writeCommand() {
-  process_->write(currentInput_.toLocal8Bit());
-  process_->write("\n");
-  currentInput_.clear();
-}
-
-QString stripTerminalOutput(const QString& text) {
-  static const QRegularExpression csi(R"(\x1B\[[0-?]*[ -/]*[@-~])");
-  static const QRegularExpression osc(R"(\x1B\][^\a]*(?:\a|\x1B\\))");
-  static const QRegularExpression singleByte(R"(\x1B[@-Z\\-_])");
-  auto cleaned = text;
-  cleaned.replace("\r", "\n");
-  cleaned.replace(csi, "");
-  cleaned.replace(osc, "");
-  cleaned.replace(singleByte, "");
-  QString result;
-  result.reserve(cleaned.size());
-  for (const auto ch : cleaned) {
-    const auto code = ch.unicode();
-    if (code == '\n' || code == '\t' || code >= 0x20) {
-      result.append(ch);
-    }
-  }
-  return result;
+  pendingOutput_.clear();
+  pageReady_ = false;
+  sessionQueued_ = false;
 }
