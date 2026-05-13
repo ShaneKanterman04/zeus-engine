@@ -319,10 +319,8 @@ void MainWindow::updateEditor() {
     appendLog(QString("Editor update finished: code=%1 status=%2. Restarting editor...").arg(code).arg(status));
     updateButton_->setEnabled(true);
     if (code == 0) {
-      const auto restartArgs = QCoreApplication::arguments().mid(1);
-      const auto started = QProcess::startDetached(QCoreApplication::applicationFilePath(), restartArgs);
-      appendLog(started ? "Editor restart launched." : "Editor restart failed to launch.");
-      if (started) QCoreApplication::quit();
+      appendLog("Editor update completed. The updater script will relaunch the editor.");
+      QCoreApplication::quit();
     }
   });
   connect(updateProcess_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
