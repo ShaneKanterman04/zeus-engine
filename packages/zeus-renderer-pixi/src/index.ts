@@ -25,6 +25,10 @@ export type ZeusPixiSpriteOptions = {
   label?: string;
 };
 
+export type ZeusPixiLayerStats = Record<ZeusPixiLayerName, number> & {
+  total: number;
+};
+
 export type AtlasFrameSequence = {
   id?: string;
   frames: readonly AtlasFrame[];
@@ -111,6 +115,23 @@ export class ZeusPixiRenderer {
         pool.push(child);
       }
     }
+  }
+
+  clearLayers(names: readonly ZeusPixiLayerName[]) {
+    for (const name of names) {
+      this.clearLayer(name);
+    }
+  }
+
+  layerStats(): ZeusPixiLayerStats {
+    const stats = Object.fromEntries(layerNames.map((name) => [name, this.layers.get(name)?.children.length ?? 0])) as Record<
+      ZeusPixiLayerName,
+      number
+    >;
+    return {
+      ...stats,
+      total: Object.values(stats).reduce((sum, count) => sum + count, 0),
+    };
   }
 
   addGraphic(name: ZeusPixiLayerName, graphic: Graphics) {
