@@ -61,6 +61,7 @@ npm run editor:update
 ```
 
 Inside the app, press **Update Editor**. The updater pulls the latest repo changes, runs `npm install`, and rebuilds the editor. Restart the app after it completes.
+The app button now relaunches the editor automatically after a successful update.
 
 ## Kill Stale Project Server
 

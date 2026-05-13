@@ -2,8 +2,11 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QHeaderView>
 #include <QImage>
 #include <QLabel>
@@ -272,14 +275,28 @@ void MainWindow::updateEditor() {
   updateProcess_ = new QProcess(this);
   updateProcess_->setWorkingDirectory(QString::fromUtf8(ZEUS_EDITOR_SOURCE_ROOT));
   updateProcess_->setProgram("node");
-  updateProcess_->setArguments({"scripts/editor-cmake.mjs", "update"});
+  const auto restartArgs = QJsonDocument(QJsonArray::fromStringList(QCoreApplication::arguments().mid(1))).toJson(QJsonDocument::Compact);
+  updateProcess_->setArguments({
+      "scripts/editor-cmake.mjs",
+      "update",
+      "--restart-exec",
+      QCoreApplication::applicationFilePath(),
+      "--restart-args-json",
+      QString::fromUtf8(restartArgs),
+  });
   updateProcess_->setProcessChannelMode(QProcess::MergedChannels);
   connect(updateProcess_, &QProcess::readyRead, this, [this]() {
     appendLog(QString::fromUtf8(updateProcess_->readAll()).trimmed());
   });
   connect(updateProcess_, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this, [this](int code, QProcess::ExitStatus status) {
-    appendLog(QString("Editor update finished: code=%1 status=%2. Restart the editor to use the new build.").arg(code).arg(status));
+    appendLog(QString("Editor update finished: code=%1 status=%2. Restarting editor...").arg(code).arg(status));
     updateButton_->setEnabled(true);
+    if (code == 0) {
+      const auto restartArgs = QCoreApplication::arguments().mid(1);
+      const auto started = QProcess::startDetached(QCoreApplication::applicationFilePath(), restartArgs);
+      appendLog(started ? "Editor restart launched." : "Editor restart failed to launch.");
+      if (started) QCoreApplication::quit();
+    }
   });
   connect(updateProcess_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
     appendLog(QString("Editor update error: %1").arg(error));

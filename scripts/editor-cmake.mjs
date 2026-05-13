@@ -7,6 +7,8 @@ const root = resolve(import.meta.dirname, "..");
 const sourceDir = join(root, "apps", "zeus-editor");
 const buildDir = join(root, "build", "zeus-editor");
 const installDir = join(root, "dist", "zeus-editor");
+const restartExec = valueFor("--restart-exec");
+const restartArgs = valueFor("--restart-args-json");
 
 switch (action) {
   case "configure":
@@ -32,6 +34,10 @@ switch (action) {
     await run("npm", ["install"]);
     await ensureConfigured();
     await run("cmake", ["--build", buildDir]);
+    if (restartExec) {
+      const parsedArgs = restartArgs ? JSON.parse(restartArgs) : [];
+      await runDetached(restartExec, Array.isArray(parsedArgs) ? parsedArgs : []);
+    }
     break;
   default:
     throw new Error(`Unknown editor action: ${action}`);
@@ -58,4 +64,24 @@ function run(command, args, options = {}) {
       }
     });
   });
+}
+
+function runDetached(command, args) {
+  return new Promise((resolveRun, reject) => {
+    const child = spawn(command, args, {
+      cwd: root,
+      detached: true,
+      stdio: "ignore",
+      shell: process.platform === "win32",
+    });
+    child.on("error", reject);
+    child.unref();
+    resolveRun();
+  });
+}
+
+function valueFor(flag) {
+  const index = process.argv.indexOf(flag);
+  if (index === -1) return undefined;
+  return process.argv[index + 1];
 }
