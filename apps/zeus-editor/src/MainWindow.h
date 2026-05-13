@@ -29,6 +29,7 @@ class MainWindow : public QMainWindow {
  private slots:
   void launchProject();
   void stopProject();
+  void killStaleServer();
   void reloadViewport();
   void updateEditor();
   void refreshFiles();
@@ -56,12 +57,14 @@ class MainWindow : public QMainWindow {
   QProcess* listProcess_ = nullptr;
   QProcess* previewProcess_ = nullptr;
   QProcess* updateProcess_ = nullptr;
+  QProcess* killProcess_ = nullptr;
   QByteArray previewBuffer_;
 
   QLineEdit* remotePathEdit_ = nullptr;
   QLabel* statusLabel_ = nullptr;
   QPushButton* launchButton_ = nullptr;
   QPushButton* stopButton_ = nullptr;
+  QPushButton* killButton_ = nullptr;
   QPushButton* updateButton_ = nullptr;
   QTreeWidget* fileTree_ = nullptr;
   QWebEngineView* viewport_ = nullptr;

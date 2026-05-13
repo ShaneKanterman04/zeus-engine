@@ -78,6 +78,7 @@ MainWindow::~MainWindow() {
   cleanupProcess(previewProcess_);
   cleanupProcess(listProcess_);
   cleanupProcess(updateProcess_);
+  cleanupProcess(killProcess_);
   cleanupProcess(tunnelProcess_);
   cleanupProcess(devProcess_);
 }
@@ -104,6 +105,10 @@ void MainWindow::buildUi() {
   toolbar->addWidget(stopButton_);
   connect(launchButton_, &QPushButton::clicked, this, &MainWindow::launchProject);
   connect(stopButton_, &QPushButton::clicked, this, &MainWindow::stopProject);
+
+  killButton_ = new QPushButton("Kill Stale Server", this);
+  toolbar->addWidget(killButton_);
+  connect(killButton_, &QPushButton::clicked, this, &MainWindow::killStaleServer);
 
   updateButton_ = new QPushButton("Update Editor", this);
   toolbar->addWidget(updateButton_);
@@ -220,6 +225,26 @@ void MainWindow::stopProject() {
   launchButton_->setEnabled(true);
   stopButton_->setEnabled(false);
   setStatus("Stopped");
+}
+
+void MainWindow::killStaleServer() {
+  cleanupProcess(killProcess_);
+  cleanupProcess(tunnelProcess_);
+  const auto port = remotePort();
+  appendLog(QString("Killing any remote process listening on port %1...").arg(port));
+  killButton_->setEnabled(false);
+  killProcess_ = ssh_.killRemotePort(profile_.ssh, port, this);
+  connect(killProcess_, &QProcess::readyRead, this, [this]() {
+    appendLog(QString::fromUtf8(killProcess_->readAll()).trimmed());
+  });
+  connect(killProcess_, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this, [this](int code, QProcess::ExitStatus status) {
+    appendLog(QString("Kill stale server finished: code=%1 status=%2").arg(code).arg(status));
+    killButton_->setEnabled(true);
+  });
+  connect(killProcess_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+    appendLog(QString("Kill stale server error: %1").arg(error));
+    killButton_->setEnabled(true);
+  });
 }
 
 void MainWindow::reloadViewport() {

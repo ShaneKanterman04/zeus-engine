@@ -13,6 +13,7 @@
     "editor:build": "node scripts/editor-cmake.mjs build",
     "editor:run": "node scripts/editor-cmake.mjs run",
     "editor:update": "node scripts/editor-cmake.mjs update",
+    "editor:kill-server": "node scripts/editor-kill-server.mjs",
     "editor:package": "node scripts/editor-cmake.mjs package",
     "typecheck": "tsc --noEmit"
   },

@@ -16,6 +16,8 @@ class SshRunner : public QObject {
   QProcess* streamRemoteFile(const SshProfile& ssh, const QString& path, QObject* owner = nullptr) const;
   QProcess* startTunnel(const SshProfile& ssh, int localPort, int remotePort, QObject* owner = nullptr) const;
   QProcess* startDevServer(const EditorProfile& profile, QObject* owner = nullptr) const;
+  QProcess* killRemotePort(const SshProfile& ssh, int port, QObject* owner = nullptr) const;
 
   QString listDirectoryCommand(const EditorProfile& profile, const QString& path) const;
+  QString killPortCommand(int port) const;
 };

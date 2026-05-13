@@ -60,3 +60,14 @@ npm run editor:update
 ```
 
 Inside the app, press **Update Editor**. The updater pulls the latest repo changes, runs `npm install`, and rebuilds the editor. Restart the app after it completes.
+
+## Kill Stale Project Server
+
+Inside the app, press **Kill Stale Server** to stop any process listening on the configured remote dev port.
+
+From the command line:
+
+```bash
+npm run editor:kill-server
+npm run editor:kill-server -- --remote shane@10.0.0.194 --port 5173
+```

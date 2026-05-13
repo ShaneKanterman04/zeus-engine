@@ -47,6 +47,10 @@ QProcess* SshRunner::startDevServer(const EditorProfile& profile, QObject* owner
   return runRemoteCommand(profile.ssh, remote, owner);
 }
 
+QProcess* SshRunner::killRemotePort(const SshProfile& ssh, int port, QObject* owner) const {
+  return runRemoteCommand(ssh, killPortCommand(port), owner);
+}
+
 QString SshRunner::listDirectoryCommand(const EditorProfile& profile, const QString& path) const {
   QString ignorePattern;
   for (const auto& entry : profile.project.ignore) {
@@ -59,4 +63,21 @@ QString SshRunner::listDirectoryCommand(const EditorProfile& profile, const QStr
           : QString(" | awk -F '\\t' '$2 !~ /^(%1)$/ { print }'").arg(ignorePattern);
   return QString("find %1 -mindepth 1 -maxdepth 1 -printf '%y\\t%f\\t%p\\t%s\\n' 2>/dev/null%2")
       .arg(shellQuote(path), filter);
+}
+
+QString SshRunner::killPortCommand(int port) const {
+  const auto portText = QString::number(port);
+  return QString(
+             "pids=$(command -v lsof >/dev/null 2>&1 && lsof -tiTCP:%1 -sTCP:LISTEN || true); "
+             "if [ -z \"$pids\" ] && command -v ss >/dev/null 2>&1; then "
+             "pids=$(ss -ltnp 'sport = :%1' 2>/dev/null | sed -n 's/.*pid=\\([0-9][0-9]*\\).*/\\1/p' | sort -u); "
+             "fi; "
+             "if [ -z \"$pids\" ]; then echo 'No process listening on port %1'; exit 0; fi; "
+             "echo \"Stopping process(es) on port %1: $pids\"; "
+             "kill $pids 2>/dev/null || true; "
+             "sleep 1; "
+             "alive=''; "
+             "for pid in $pids; do if kill -0 \"$pid\" 2>/dev/null; then alive=\"$alive $pid\"; fi; done; "
+             "if [ -n \"$alive\" ]; then echo \"Force stopping:$alive\"; kill -9 $alive 2>/dev/null || true; fi")
+      .arg(portText);
 }
