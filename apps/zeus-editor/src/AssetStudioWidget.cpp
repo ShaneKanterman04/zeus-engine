@@ -214,13 +214,18 @@ bool AssetStudioWidget::useLocalExecution() const {
 }
 
 QProcess* AssetStudioWidget::startCommand(const QString& command) {
-  if (!useLocalExecution()) return ssh_.runRemoteCommand(sshProfile_, command, this);
+  if (!useLocalExecution()) {
+    auto* process = ssh_.runRemoteCommand(sshProfile_, command, this);
+    process->closeWriteChannel();
+    return process;
+  }
 
   auto* process = new QProcess(this);
   process->setProgram("bash");
   process->setArguments({"-lc", command});
   process->setProcessChannelMode(QProcess::MergedChannels);
   process->start();
+  process->closeWriteChannel();
   return process;
 }
 
