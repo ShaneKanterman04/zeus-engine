@@ -37,18 +37,24 @@ QProcess* SshRunner::startDevServer(const EditorProfile& profile, QObject* owner
   command << shellQuote(profile.project.dev.program);
   for (const auto& arg : profile.project.dev.args) command << shellQuote(arg);
   const auto commandText = command.join(" ");
+  const auto cleanupText = killPortsCommand({5173, 5174, 5175, 5176, 5177, 5178, 5179, 5180});
   const auto remote = QString(
-                          "cd %1 && "
+                          "%1 ; "
+                          "cd %2 && "
                           "set -m; "
-                          "%2 & child=$!; "
+                          "%3 & child=$!; "
                           "trap 'kill -TERM -$child 2>/dev/null; kill -TERM $child 2>/dev/null' TERM INT HUP EXIT; "
                           "wait $child")
-                          .arg(shellQuote(profile.project.remotePath), commandText);
+                          .arg(cleanupText, shellQuote(profile.project.remotePath), commandText);
   return runRemoteCommand(profile.ssh, remote, owner);
 }
 
 QProcess* SshRunner::killRemotePort(const SshProfile& ssh, int port, QObject* owner) const {
   return runRemoteCommand(ssh, killPortCommand(port), owner);
+}
+
+QProcess* SshRunner::killRemotePorts(const SshProfile& ssh, const QList<int>& ports, QObject* owner) const {
+  return runRemoteCommand(ssh, killPortsCommand(ports), owner);
 }
 
 QString SshRunner::listDirectoryCommand(const EditorProfile& profile, const QString& path) const {
@@ -78,6 +84,19 @@ QString SshRunner::killPortCommand(int port) const {
              "sleep 1; "
              "alive=''; "
              "for pid in $pids; do if kill -0 \"$pid\" 2>/dev/null; then alive=\"$alive $pid\"; fi; done; "
-             "if [ -n \"$alive\" ]; then echo \"Force stopping:$alive\"; kill -9 $alive 2>/dev/null || true; fi")
+            "if [ -n \"$alive\" ]; then echo \"Force stopping:$alive\"; kill -9 $alive 2>/dev/null || true; fi")
       .arg(portText);
+}
+
+QString SshRunner::killPortsCommand(const QList<int>& ports) const {
+  if (ports.isEmpty()) return QStringLiteral("echo 'No ports requested'; exit 0");
+
+  QStringList portText;
+  portText.reserve(ports.size());
+  for (const auto port : ports) portText << QString::number(port);
+
+  QStringList commands;
+  commands.reserve(ports.size());
+  for (const auto& port : portText) commands << QString("(%1)").arg(killPortCommand(port.toInt()));
+  return commands.join(" ; ");
 }

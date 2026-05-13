@@ -205,8 +205,10 @@ void MainWindow::launchProject() {
   profile_.project.remotePath = remotePathEdit_->text().trimmed();
   cleanupProcess(devProcess_);
   cleanupProcess(tunnelProcess_);
+  cleanupProcess(killProcess_);
 
   appendLog(QString("Launching %1 on %2").arg(profile_.project.dev.program, sshTarget(profile_.ssh)));
+  appendLog("Stale ports 5173-5180 are cleaned up inside the launch command.");
   devProcess_ = ssh_.startDevServer(profile_, this);
   connect(devProcess_, &QProcess::readyRead, this, [this]() {
     const auto output = QString::fromUtf8(devProcess_->readAll());

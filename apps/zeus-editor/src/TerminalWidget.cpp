@@ -110,6 +110,7 @@ void TerminalWidget::handleTerminalReady() {
   session_->start(ssh_, remotePath_);
   bridge_->resizeTerminal(120, 40);
   appendOutputChunk(QString("Connecting to %1 in %2...\r\n").arg(sshTarget(ssh_), remotePath_).toUtf8());
+  if (view_) view_->setFocus();
 }
 
 void TerminalWidget::handleTerminalOutput(const QByteArray& data) {
@@ -126,6 +127,8 @@ void TerminalWidget::buildUi() {
   layout->setContentsMargins(0, 0, 0, 0);
   bridge_ = new TerminalBridge(this);
   view_ = new QWebEngineView(this);
+  view_->setFocusPolicy(Qt::StrongFocus);
+  view_->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessFileUrls, true);
   view_->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessRemoteUrls, true);
   view_->settings()->setAttribute(QWebEngineSettings::JavascriptCanAccessClipboard, true);
   auto* channel = new QWebChannel(this);
@@ -143,7 +146,7 @@ void TerminalWidget::loadTerminalPage() {
   html.replace("__XTERM_CSS__", localAssetUrl("apps/zeus-editor/vendor/xterm/css/xterm.css"));
   html.replace("__XTERM_JS__", localAssetUrl("apps/zeus-editor/vendor/xterm/lib/xterm.js"));
   html.replace("__XTERM_FIT_JS__", localAssetUrl("apps/zeus-editor/vendor/xterm-addon-fit/lib/xterm-addon-fit.js"));
-  view_->setHtml(html, QUrl("qrc:/zeus-editor/terminal"));
+  view_->setHtml(html, QUrl::fromLocalFile(QString::fromUtf8(ZEUS_EDITOR_SOURCE_ROOT)));
 }
 
 void TerminalWidget::flushPendingOutput() {
