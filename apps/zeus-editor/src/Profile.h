@@ -20,6 +20,7 @@ struct DevCommand {
 
 struct ProjectProfile {
   QString remotePath = "/home/shane/Projects/last-hearth-game";
+  QString engineRemotePath;
   DevCommand dev;
   QVector<int> forwardPorts = {5173};
   QStringList ignore = {".git", "node_modules", "dist", "coverage", ".cache", "build"};
