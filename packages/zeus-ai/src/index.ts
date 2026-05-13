@@ -23,6 +23,30 @@ export type ZeusAiSignalScore = {
   signals: { signal: ZeusAiSignal; score: number }[];
 };
 
+export type ZeusThreatStage = "quiet" | "interested" | "stalking" | "raid";
+
+export type ZeusThreatStageThresholds = {
+  interested: number;
+  stalking: number;
+  raid: number;
+};
+
+export type ZeusThreatMeterOptions = {
+  current: number;
+  signalScore: number;
+  dt: number;
+  decayPerSecond?: number;
+  gainPerSecond?: number;
+  min?: number;
+  max?: number;
+};
+
+export const defaultThreatStageThresholds: ZeusThreatStageThresholds = {
+  interested: 20,
+  stalking: 55,
+  raid: 85,
+};
+
 export function ageAiSignals(signals: readonly ZeusAiSignal[], dt: number) {
   return signals
     .map((signal) => ({ ...signal, ageSeconds: Math.max(0, (signal.ageSeconds ?? 0) + Math.max(0, dt)) }))
@@ -55,4 +79,20 @@ function matchesSignalFilters(signal: ZeusAiSignal, options: ZeusAiSignalScoreOp
   if (!options.tags || options.tags.length === 0) return true;
   const tags = new Set(signal.tags ?? []);
   return options.tags.some((tag) => tags.has(tag));
+}
+
+export function advanceThreatMeter(options: ZeusThreatMeterOptions) {
+  const dt = Math.max(0, options.dt);
+  const min = options.min ?? 0;
+  const max = options.max ?? 100;
+  const gain = Math.max(0, options.signalScore) * (options.gainPerSecond ?? 1) * dt;
+  const decay = Math.max(0, options.decayPerSecond ?? 0) * dt;
+  return clamp(options.current + gain - decay, min, max);
+}
+
+export function classifyThreatStage(value: number, thresholds: ZeusThreatStageThresholds = defaultThreatStageThresholds): ZeusThreatStage {
+  if (value >= thresholds.raid) return "raid";
+  if (value >= thresholds.stalking) return "stalking";
+  if (value >= thresholds.interested) return "interested";
+  return "quiet";
 }

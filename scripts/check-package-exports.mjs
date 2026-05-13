@@ -24,6 +24,8 @@ const rendererPixi = await import("@zeus/renderer-pixi");
 const expectedNamedExports = [
   [ai, "scoreSignalsAtPoint"],
   [ai, "ageAiSignals"],
+  [ai, "advanceThreatMeter"],
+  [ai, "classifyThreatStage"],
   [core, "ZeusFrameMetricsSampler"],
   [core, "createEmptyFrameMetricsSnapshot"],
   [rendererPixi, "ZeusPixiRuntime"],
