@@ -68,11 +68,14 @@ export class InputContext {
   keyDown(code: string) {
     const action = this.bindings[code];
     if (!action || this.capturedBy) return false;
+    const wasHeld = this.heldCodes.has(code);
     this.heldCodes.add(code);
-    if (!this.state.actions.has(action)) {
+    if (!wasHeld && !this.state.actions.has(action)) {
       this.state.pressed.add(action);
     }
-    this.state.actions.add(action);
+    if (!wasHeld) {
+      this.state.actions.add(action);
+    }
     return true;
   }
 
