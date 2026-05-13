@@ -243,7 +243,7 @@ void MainWindow::buildUi() {
   viewportShortcut_->setContext(Qt::ApplicationShortcut);
   connect(viewportShortcut_, &QShortcut::activated, this, &MainWindow::toggleViewportFullscreen);
 
-  defaultViewShortcut_ = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_QuoteLeft), this);
+  defaultViewShortcut_ = new QShortcut(QKeySequence("Ctrl+`"), this);
   defaultViewShortcut_->setContext(Qt::ApplicationShortcut);
   connect(defaultViewShortcut_, &QShortcut::activated, this, &MainWindow::restoreDefaultView);
 
@@ -299,8 +299,7 @@ void MainWindow::buildMenus() {
   connect(reloadViewportAction, &QAction::triggered, this, &MainWindow::reloadViewport);
 
   auto* panelsMenu = menuBar()->addMenu("&Panels");
-  auto* defaultLayoutAction = panelsMenu->addAction("Default Layout");
-  defaultLayoutAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_QuoteLeft));
+  auto* defaultLayoutAction = panelsMenu->addAction("Default Layout\tCtrl+`");
   connect(defaultLayoutAction, &QAction::triggered, this, &MainWindow::restoreDefaultView);
   panelsMenu->addSeparator();
 
@@ -338,11 +337,9 @@ void MainWindow::buildMenus() {
   });
   panelsMenu->addSeparator();
 
-  auto* terminalFullscreenAction = panelsMenu->addAction("Terminal Focus Mode");
-  terminalFullscreenAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_1));
+  auto* terminalFullscreenAction = panelsMenu->addAction("Terminal Focus Mode\tCtrl+1");
   connect(terminalFullscreenAction, &QAction::triggered, this, &MainWindow::toggleTerminalFullscreen);
-  auto* viewportFullscreenAction = panelsMenu->addAction("Viewport Focus Mode");
-  viewportFullscreenAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_2));
+  auto* viewportFullscreenAction = panelsMenu->addAction("Viewport Focus Mode\tCtrl+2");
   connect(viewportFullscreenAction, &QAction::triggered, this, &MainWindow::toggleViewportFullscreen);
 }
 
