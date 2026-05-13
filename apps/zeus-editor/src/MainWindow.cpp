@@ -15,7 +15,9 @@
 #include <QPixmap>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QKeySequence>
 #include <QRegularExpression>
+#include <QShortcut>
 #include <QSplitter>
 #include <QStandardPaths>
 #include <QStatusBar>
@@ -30,6 +32,12 @@
 #include <QWidget>
 
 namespace {
+
+enum WorkspaceMode {
+  WorkspaceDefault = 0,
+  WorkspaceTerminalFullscreen = 1,
+  WorkspaceViewportFullscreen = 2,
+};
 
 enum FileColumns { NameColumn = 0, KindColumn = 1, SizeColumn = 2 };
 
@@ -124,8 +132,8 @@ void MainWindow::buildUi() {
   auto* reloadAction = toolbar->addAction("Reload Viewport");
   connect(reloadAction, &QAction::triggered, this, &MainWindow::reloadViewport);
 
-  auto* rootSplitter = new QSplitter(Qt::Horizontal, this);
-  fileTree_ = new QTreeWidget(rootSplitter);
+  rootSplitter_ = new QSplitter(Qt::Horizontal, this);
+  fileTree_ = new QTreeWidget(rootSplitter_);
   fileTree_->setHeaderLabels({"Name", "Kind", "Size"});
   fileTree_->header()->setStretchLastSection(false);
   fileTree_->header()->setSectionResizeMode(NameColumn, QHeaderView::Stretch);
@@ -133,7 +141,7 @@ void MainWindow::buildUi() {
   connect(fileTree_, &QTreeWidget::itemExpanded, this, &MainWindow::loadDirectory);
   connect(fileTree_, &QTreeWidget::itemActivated, this, &MainWindow::previewFile);
 
-  rightTabs_ = new QTabWidget(rootSplitter);
+  rightTabs_ = new QTabWidget(rootSplitter_);
   viewport_ = new QWebEngineView(rightTabs_);
   rightTabs_->addTab(viewport_, "Viewport");
 
@@ -148,28 +156,41 @@ void MainWindow::buildUi() {
   previewLayout->addWidget(imagePreview_);
   rightTabs_->addTab(previewHost, "Preview");
 
-  rootSplitter->setStretchFactor(0, 1);
-  rootSplitter->setStretchFactor(1, 3);
+  rootSplitter_->setStretchFactor(0, 1);
+  rootSplitter_->setStretchFactor(1, 3);
 
-  auto* bottomTabs = new QTabWidget(this);
-  terminal_ = new TerminalWidget(bottomTabs);
-  log_ = new QPlainTextEdit(bottomTabs);
+  bottomTabs_ = new QTabWidget(this);
+  terminal_ = new TerminalWidget(bottomTabs_);
+  log_ = new QPlainTextEdit(bottomTabs_);
   log_->setReadOnly(true);
   log_->setMaximumBlockCount(2000);
-  bottomTabs->addTab(terminal_, "Terminal");
-  bottomTabs->addTab(log_, "Logs");
-  bottomTabs->setMaximumHeight(240);
+  bottomTabs_->addTab(terminal_, "Terminal");
+  bottomTabs_->addTab(log_, "Logs");
+  bottomTabs_->setMaximumHeight(240);
 
   auto* central = new QWidget(this);
   auto* layout = new QVBoxLayout(central);
   layout->setContentsMargins(6, 6, 6, 6);
-  layout->addWidget(rootSplitter, 1);
-  layout->addWidget(bottomTabs);
+  layout->addWidget(rootSplitter_, 1);
+  layout->addWidget(bottomTabs_);
   setCentralWidget(central);
+
+  terminalShortcut_ = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_1), this);
+  terminalShortcut_->setContext(Qt::ApplicationShortcut);
+  connect(terminalShortcut_, &QShortcut::activated, this, &MainWindow::toggleTerminalFullscreen);
+
+  viewportShortcut_ = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_2), this);
+  viewportShortcut_->setContext(Qt::ApplicationShortcut);
+  connect(viewportShortcut_, &QShortcut::activated, this, &MainWindow::toggleViewportFullscreen);
+
+  defaultViewShortcut_ = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_QuoteLeft), this);
+  defaultViewShortcut_->setContext(Qt::ApplicationShortcut);
+  connect(defaultViewShortcut_, &QShortcut::activated, this, &MainWindow::restoreDefaultView);
 
   statusLabel_ = new QLabel(this);
   statusBar()->addPermanentWidget(statusLabel_, 1);
   setStatus(QString("Profile %1: %2").arg(profile_.name, sshTarget(profile_.ssh)));
+  setWorkspaceMode(WorkspaceDefault);
   restartTerminal();
 }
 
@@ -268,6 +289,48 @@ void MainWindow::restartTerminal() {
 
 void MainWindow::reloadViewport() {
   viewport_->reload();
+}
+
+void MainWindow::toggleTerminalFullscreen() {
+  setWorkspaceMode(workspaceMode_ == WorkspaceTerminalFullscreen ? WorkspaceDefault : WorkspaceTerminalFullscreen);
+}
+
+void MainWindow::toggleViewportFullscreen() {
+  setWorkspaceMode(workspaceMode_ == WorkspaceViewportFullscreen ? WorkspaceDefault : WorkspaceViewportFullscreen);
+}
+
+void MainWindow::restoreDefaultView() {
+  setWorkspaceMode(WorkspaceDefault);
+}
+
+void MainWindow::setWorkspaceMode(int mode) {
+  workspaceMode_ = mode;
+  if (!rootSplitter_ || !bottomTabs_) return;
+
+  switch (workspaceMode_) {
+    case WorkspaceTerminalFullscreen:
+      rootSplitter_->hide();
+      bottomTabs_->show();
+      bottomTabs_->setMaximumHeight(QWIDGETSIZE_MAX);
+      bottomTabs_->setCurrentWidget(terminal_);
+      terminal_->requestFocusTerminal();
+      setStatus("Terminal fullscreen");
+      break;
+    case WorkspaceViewportFullscreen:
+      bottomTabs_->hide();
+      rootSplitter_->show();
+      bottomTabs_->setMaximumHeight(240);
+      rightTabs_->setCurrentWidget(viewport_);
+      viewport_->setFocus();
+      setStatus("Viewport fullscreen");
+      break;
+    default:
+      rootSplitter_->show();
+      bottomTabs_->show();
+      bottomTabs_->setMaximumHeight(240);
+      setStatus(QString("Profile %1: %2").arg(profile_.name, sshTarget(profile_.ssh)));
+      break;
+  }
 }
 
 void MainWindow::updateEditor() {

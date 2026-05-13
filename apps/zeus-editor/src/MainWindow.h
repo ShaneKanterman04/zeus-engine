@@ -14,10 +14,12 @@ class QLabel;
 class QLineEdit;
 class QPlainTextEdit;
 class QPushButton;
+class QShortcut;
 class QTabWidget;
 class QTextEdit;
 class QTreeWidget;
 class QWebEngineView;
+class QSplitter;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -33,6 +35,9 @@ class MainWindow : public QMainWindow {
   void killStaleServer();
   void restartTerminal();
   void reloadViewport();
+  void toggleTerminalFullscreen();
+  void toggleViewportFullscreen();
+  void restoreDefaultView();
   void updateEditor();
   void refreshFiles();
   void loadDirectory(QTreeWidgetItem* item);
@@ -51,6 +56,7 @@ class MainWindow : public QMainWindow {
   QString selectedPath() const;
   int remotePort() const;
   int localPort() const;
+  void setWorkspaceMode(int mode);
 
   EditorProfile profile_;
   SshRunner ssh_;
@@ -68,11 +74,21 @@ class MainWindow : public QMainWindow {
   QPushButton* stopButton_ = nullptr;
   QPushButton* killButton_ = nullptr;
   QPushButton* updateButton_ = nullptr;
+  QShortcut* terminalShortcut_ = nullptr;
+  QShortcut* viewportShortcut_ = nullptr;
+  QShortcut* defaultViewShortcut_ = nullptr;
   QTreeWidget* fileTree_ = nullptr;
   QWebEngineView* viewport_ = nullptr;
   QTabWidget* rightTabs_ = nullptr;
+  QTabWidget* bottomTabs_ = nullptr;
+  QSplitter* rootSplitter_ = nullptr;
+  QWidget* terminalPane_ = nullptr;
+  QWidget* viewportPane_ = nullptr;
+  QWidget* defaultPane_ = nullptr;
   QTextEdit* textPreview_ = nullptr;
   QLabel* imagePreview_ = nullptr;
   QPlainTextEdit* log_ = nullptr;
   TerminalWidget* terminal_ = nullptr;
+
+  int workspaceMode_ = 0;
 };
