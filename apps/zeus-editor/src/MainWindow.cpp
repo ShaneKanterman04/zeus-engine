@@ -133,13 +133,9 @@ void MainWindow::buildUi() {
   connect(reloadAction, &QAction::triggered, this, &MainWindow::reloadViewport);
 
   rootSplitter_ = new QSplitter(Qt::Horizontal, this);
-  fileTree_ = new QTreeWidget(rootSplitter_);
-  fileTree_->setHeaderLabels({"Name", "Kind", "Size"});
-  fileTree_->header()->setStretchLastSection(false);
-  fileTree_->header()->setSectionResizeMode(NameColumn, QHeaderView::Stretch);
-  fileTree_->setUniformRowHeights(true);
-  connect(fileTree_, &QTreeWidget::itemExpanded, this, &MainWindow::loadDirectory);
-  connect(fileTree_, &QTreeWidget::itemActivated, this, &MainWindow::previewFile);
+  explorer_ = new RemoteExplorerWidget(rootSplitter_);
+  connect(explorer_, &RemoteExplorerWidget::fileActivated, this, &MainWindow::previewPath);
+  connect(explorer_, &RemoteExplorerWidget::statusMessage, this, [this](const QString& message) { setStatus(message); });
 
   rightTabs_ = new QTabWidget(rootSplitter_);
   viewport_ = new QWebEngineView(rightTabs_);
@@ -194,6 +190,7 @@ void MainWindow::buildUi() {
   statusBar()->addPermanentWidget(statusLabel_, 1);
   setStatus(QString("Profile %1: %2").arg(profile_.name, sshTarget(profile_.ssh)));
   if (assetBrowser_) assetBrowser_->setContext(profile_.ssh, profile_.project.remotePath, profile_.project.ignore);
+  if (explorer_) explorer_->setContext(profile_.ssh, profile_.project.remotePath, profile_.project.ignore);
   setWorkspaceMode(WorkspaceDefault);
   restartTerminal();
 }
@@ -376,17 +373,14 @@ void MainWindow::updateEditor() {
 void MainWindow::refreshFiles() {
   profile_.project.remotePath = remotePathEdit_->text().trimmed();
   cleanupProcess(listProcess_);
+  if (explorer_) {
+    explorer_->setContext(profile_.ssh, profile_.project.remotePath, profile_.project.ignore);
+    explorer_->refresh();
+  }
   if (assetBrowser_) {
     assetBrowser_->setContext(profile_.ssh, profile_.project.remotePath, profile_.project.ignore);
     assetBrowser_->refresh();
   }
-  fileTree_->clear();
-  auto* root = new QTreeWidgetItem(fileTree_, {profile_.project.remotePath, "dir", ""});
-  root->setData(NameColumn, Qt::UserRole, profile_.project.remotePath);
-  root->setData(NameColumn, Qt::UserRole + 1, "d");
-  addDirectoryPlaceholder(root);
-  root->setExpanded(true);
-  loadDirectory(root);
 }
 
 void MainWindow::loadDirectory(QTreeWidgetItem* item) {
@@ -409,7 +403,10 @@ void MainWindow::previewFile(QTreeWidgetItem* item, int) {
     item->setExpanded(!item->isExpanded());
     return;
   }
-  const auto path = itemPath(item);
+  previewPath(itemPath(item));
+}
+
+void MainWindow::previewPath(const QString& path) {
   if (path.isEmpty()) return;
 
   cleanupProcess(previewProcess_);

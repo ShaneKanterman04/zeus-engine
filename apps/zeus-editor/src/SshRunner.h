@@ -21,6 +21,7 @@ class SshRunner : public QObject {
   QProcess* killRemotePorts(const SshProfile& ssh, const QList<int>& ports, QObject* owner = nullptr) const;
 
   QString listDirectoryCommand(const EditorProfile& profile, const QString& path) const;
+  QString listDirectoryCommand(const QString& path, const QStringList& ignore) const;
   QString killPortCommand(int port) const;
   QString killPortsCommand(const QList<int>& ports) const;
 };

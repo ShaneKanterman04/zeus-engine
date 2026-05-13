@@ -3,6 +3,7 @@
 #include "Profile.h"
 #include "SshRunner.h"
 #include "AssetBrowserWidget.h"
+#include "RemoteExplorerWidget.h"
 #include "TerminalWidget.h"
 
 #include <QByteArray>
@@ -43,6 +44,7 @@ class MainWindow : public QMainWindow {
   void refreshFiles();
   void loadDirectory(QTreeWidgetItem* item);
   void previewFile(QTreeWidgetItem* item, int column);
+  void previewPath(const QString& path);
 
  private:
   void buildUi();
@@ -79,6 +81,7 @@ class MainWindow : public QMainWindow {
   QShortcut* viewportShortcut_ = nullptr;
   QShortcut* defaultViewShortcut_ = nullptr;
   QTreeWidget* fileTree_ = nullptr;
+  RemoteExplorerWidget* explorer_ = nullptr;
   QWebEngineView* viewport_ = nullptr;
   QTabWidget* rightTabs_ = nullptr;
   QTabWidget* bottomTabs_ = nullptr;

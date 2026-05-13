@@ -58,8 +58,12 @@ QProcess* SshRunner::killRemotePorts(const SshProfile& ssh, const QList<int>& po
 }
 
 QString SshRunner::listDirectoryCommand(const EditorProfile& profile, const QString& path) const {
+  return listDirectoryCommand(path, profile.project.ignore);
+}
+
+QString SshRunner::listDirectoryCommand(const QString& path, const QStringList& ignore) const {
   QString ignorePattern;
-  for (const auto& entry : profile.project.ignore) {
+  for (const auto& entry : ignore) {
     if (!ignorePattern.isEmpty()) ignorePattern += "|";
     ignorePattern += QRegularExpression::escape(entry);
   }
@@ -67,7 +71,7 @@ QString SshRunner::listDirectoryCommand(const EditorProfile& profile, const QStr
       ignorePattern.isEmpty()
           ? QString()
           : QString(" | awk -F '\\t' '$2 !~ /^(%1)$/ { print }'").arg(ignorePattern);
-  return QString("find %1 -mindepth 1 -maxdepth 1 -printf '%y\\t%f\\t%p\\t%s\\n' 2>/dev/null%2")
+  return QString("find %1 -mindepth 1 -maxdepth 1 -printf '%y\\t%f\\t%p\\t%s\\t%TY-%Tm-%Td %TH:%TM\\n' 2>/dev/null%2")
       .arg(shellQuote(path), filter);
 }
 
