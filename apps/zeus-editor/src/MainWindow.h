@@ -30,6 +30,7 @@ class MainWindow : public QMainWindow {
   void launchProject();
   void stopProject();
   void reloadViewport();
+  void updateEditor();
   void refreshFiles();
   void loadDirectory(QTreeWidgetItem* item);
   void previewFile(QTreeWidgetItem* item, int column);
@@ -54,12 +55,14 @@ class MainWindow : public QMainWindow {
   QProcess* tunnelProcess_ = nullptr;
   QProcess* listProcess_ = nullptr;
   QProcess* previewProcess_ = nullptr;
+  QProcess* updateProcess_ = nullptr;
   QByteArray previewBuffer_;
 
   QLineEdit* remotePathEdit_ = nullptr;
   QLabel* statusLabel_ = nullptr;
   QPushButton* launchButton_ = nullptr;
   QPushButton* stopButton_ = nullptr;
+  QPushButton* updateButton_ = nullptr;
   QTreeWidget* fileTree_ = nullptr;
   QWebEngineView* viewport_ = nullptr;
   QTabWidget* rightTabs_ = nullptr;

@@ -28,6 +28,10 @@ target_link_libraries(zeus-editor PRIVATE
   Qt6::Network
 )
 
+target_compile_definitions(zeus-editor PRIVATE
+  ZEUS_EDITOR_SOURCE_ROOT="${CMAKE_SOURCE_DIR}/../.."
+)
+
 set_target_properties(zeus-editor PROPERTIES
   WIN32_EXECUTABLE TRUE
   MACOSX_BUNDLE FALSE

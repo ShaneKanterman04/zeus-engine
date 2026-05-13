@@ -27,6 +27,12 @@ switch (action) {
     await run("cmake", ["--build", buildDir]);
     await run("cmake", ["--install", buildDir, "--prefix", installDir]);
     break;
+  case "update":
+    await run("git", ["pull", "--ff-only"]);
+    await run("npm", ["install"]);
+    await ensureConfigured();
+    await run("cmake", ["--build", buildDir]);
+    break;
   default:
     throw new Error(`Unknown editor action: ${action}`);
 }

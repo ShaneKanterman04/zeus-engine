@@ -50,3 +50,13 @@ dist/zeus-editor
 ## Scope
 
 V1 does not edit files, run migrations, or provide scene editing. The file explorer and preview are intentionally read-only.
+
+## Update
+
+From the command line:
+
+```bash
+npm run editor:update
+```
+
+Inside the app, press **Update Editor**. The updater pulls the latest repo changes, runs `npm install`, and rebuilds the editor. Restart the app after it completes.

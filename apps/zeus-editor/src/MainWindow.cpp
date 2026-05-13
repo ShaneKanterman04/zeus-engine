@@ -77,6 +77,7 @@ MainWindow::MainWindow(const QString& profileId, const QString& remoteTarget, co
 MainWindow::~MainWindow() {
   cleanupProcess(previewProcess_);
   cleanupProcess(listProcess_);
+  cleanupProcess(updateProcess_);
   cleanupProcess(tunnelProcess_);
   cleanupProcess(devProcess_);
 }
@@ -103,6 +104,10 @@ void MainWindow::buildUi() {
   toolbar->addWidget(stopButton_);
   connect(launchButton_, &QPushButton::clicked, this, &MainWindow::launchProject);
   connect(stopButton_, &QPushButton::clicked, this, &MainWindow::stopProject);
+
+  updateButton_ = new QPushButton("Update Editor", this);
+  toolbar->addWidget(updateButton_);
+  connect(updateButton_, &QPushButton::clicked, this, &MainWindow::updateEditor);
 
   auto* reloadAction = toolbar->addAction("Reload Viewport");
   connect(reloadAction, &QAction::triggered, this, &MainWindow::reloadViewport);
@@ -219,6 +224,30 @@ void MainWindow::stopProject() {
 
 void MainWindow::reloadViewport() {
   viewport_->reload();
+}
+
+void MainWindow::updateEditor() {
+  cleanupProcess(updateProcess_);
+  appendLog("Updating Zeus editor from git...");
+  updateButton_->setEnabled(false);
+
+  updateProcess_ = new QProcess(this);
+  updateProcess_->setWorkingDirectory(QString::fromUtf8(ZEUS_EDITOR_SOURCE_ROOT));
+  updateProcess_->setProgram("node");
+  updateProcess_->setArguments({"scripts/editor-cmake.mjs", "update"});
+  updateProcess_->setProcessChannelMode(QProcess::MergedChannels);
+  connect(updateProcess_, &QProcess::readyRead, this, [this]() {
+    appendLog(QString::fromUtf8(updateProcess_->readAll()).trimmed());
+  });
+  connect(updateProcess_, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this, [this](int code, QProcess::ExitStatus status) {
+    appendLog(QString("Editor update finished: code=%1 status=%2. Restart the editor to use the new build.").arg(code).arg(status));
+    updateButton_->setEnabled(true);
+  });
+  connect(updateProcess_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+    appendLog(QString("Editor update error: %1").arg(error));
+    updateButton_->setEnabled(true);
+  });
+  updateProcess_->start();
 }
 
 void MainWindow::refreshFiles() {

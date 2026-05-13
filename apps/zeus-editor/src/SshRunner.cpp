@@ -57,6 +57,6 @@ QString SshRunner::listDirectoryCommand(const EditorProfile& profile, const QStr
       ignorePattern.isEmpty()
           ? QString()
           : QString(" | awk -F '\\t' '$2 !~ /^(%1)$/ { print }'").arg(ignorePattern);
-  return QString("find %1 -mindepth 1 -maxdepth 1 -printf '%%y\\t%%f\\t%%p\\t%%s\\n' 2>/dev/null%2")
+  return QString("find %1 -mindepth 1 -maxdepth 1 -printf '%y\\t%f\\t%p\\t%s\\n' 2>/dev/null%2")
       .arg(shellQuote(path), filter);
 }
