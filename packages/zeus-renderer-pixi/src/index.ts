@@ -1,5 +1,6 @@
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Texture } from "pixi.js";
-import type { Entity, Vec2 } from "@zeus/core";
+import { FixedStepLoop, ZeusFrameMetricsSampler } from "@zeus/core";
+import type { Entity, FixedStepLoopOptions, Vec2, ZeusFrameMetricsSnapshot } from "@zeus/core";
 import type { AssetManifestRegistry } from "@zeus/assets";
 import type { AtlasFrame } from "./atlas/AtlasManifest.js";
 
@@ -31,6 +32,20 @@ export type AtlasFrameSequence = {
   loop?: boolean;
 };
 
+export type ZeusPixiRuntimeScene = {
+  update(dt: number): void;
+  render(renderer: ZeusPixiRenderer, metrics: ZeusFrameMetricsSnapshot): void;
+};
+
+export type ZeusPixiRuntimeOptions = {
+  width?: number;
+  height?: number;
+  background?: string;
+  fixedStep?: FixedStepLoopOptions;
+  metricsSamples?: number;
+  frameSpikeMs?: number;
+};
+
 const layerNames: ZeusPixiLayerName[] = [
   "ground",
   "groundDetail",
@@ -53,8 +68,8 @@ export class ZeusPixiRenderer {
   camera: Vec2 = { x: 0, y: 0 };
   qualityMode: "standard" | "low" = "standard";
 
-  async init(parent: HTMLElement, width = 1280, height = 720) {
-    await this.app.init({ width, height, background: "#1d211d", antialias: false });
+  async init(parent: HTMLElement, width = 1280, height = 720, background = "#1d211d") {
+    await this.app.init({ width, height, background, antialias: false });
     parent.append(this.app.canvas);
     this.app.stage.addChild(this.stage);
     for (const name of layerNames) {
@@ -178,6 +193,76 @@ export class ZeusPixiRenderer {
     this.qualityMode = mode;
     this.app.ticker.maxFPS = mode === "low" ? 30 : 0;
   }
+}
+
+export class ZeusPixiRuntime {
+  readonly renderer = new ZeusPixiRenderer();
+  readonly metrics: ZeusFrameMetricsSampler;
+  private readonly loop: FixedStepLoop;
+  private ticker?: (ticker: { deltaMS: number }) => void;
+  private started = false;
+  private readonly width: number;
+  private readonly height: number;
+  private readonly background: string;
+
+  constructor(
+    private readonly scene: ZeusPixiRuntimeScene,
+    options: ZeusPixiRuntimeOptions = {},
+  ) {
+    this.width = options.width ?? 1280;
+    this.height = options.height ?? 720;
+    this.background = options.background ?? "#1d211d";
+    this.loop = new FixedStepLoop(options.fixedStep);
+    this.metrics = new ZeusFrameMetricsSampler({
+      maxSamples: options.metricsSamples,
+      spikeMs: options.frameSpikeMs,
+    });
+  }
+
+  async init(parent: HTMLElement) {
+    await this.renderer.init(parent, this.width, this.height, this.background);
+    this.renderer.resizeToWindow(this.width, this.height);
+    window.addEventListener("resize", this.resize);
+  }
+
+  start() {
+    if (this.started) return;
+    this.started = true;
+    this.ticker = (ticker) => this.tick(ticker.deltaMS / 1000);
+    this.renderer.app.ticker.add(this.ticker);
+  }
+
+  stop() {
+    if (!this.started || !this.ticker) return;
+    this.renderer.app.ticker.remove(this.ticker);
+    this.started = false;
+    this.ticker = undefined;
+  }
+
+  destroy() {
+    this.stop();
+    window.removeEventListener("resize", this.resize);
+    this.renderer.app.destroy();
+  }
+
+  tick(frameSeconds: number) {
+    const frameMs = Math.max(0, frameSeconds * 1000);
+    const simStart = performance.now();
+    const simSteps = this.loop.advance(frameSeconds, (stepSeconds) => this.scene.update(stepSeconds));
+    const simMs = performance.now() - simStart;
+    const renderStart = performance.now();
+    this.scene.render(this.renderer, this.metrics.snapshot());
+    const renderMs = performance.now() - renderStart;
+    return this.metrics.record({ frameMs, simMs, renderMs, simSteps });
+  }
+
+  setQualityMode(mode: "standard" | "low") {
+    this.renderer.setQualityMode(mode);
+  }
+
+  private readonly resize = () => {
+    this.renderer.resizeToWindow(this.width, this.height);
+  };
 }
 
 export function resolveAtlasFrameSequence(sequence: AtlasFrameSequence, elapsedSeconds: number) {
