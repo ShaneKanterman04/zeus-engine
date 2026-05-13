@@ -305,7 +305,6 @@ void MainWindow::buildMenus() {
   panelsMenu->addSeparator();
 
   auto* terminalAction = panelsMenu->addAction("Terminal");
-  terminalAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_1));
   connect(terminalAction, &QAction::triggered, this, [this]() {
     setWorkspaceMode(WorkspaceDefault);
     bottomTabs_->setCurrentWidget(terminal_);
@@ -320,7 +319,6 @@ void MainWindow::buildMenus() {
   panelsMenu->addSeparator();
 
   auto* viewportAction = panelsMenu->addAction("Viewport");
-  viewportAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_2));
   connect(viewportAction, &QAction::triggered, this, [this]() {
     setWorkspaceMode(WorkspaceDefault);
     rightTabs_->setCurrentWidget(viewport_);
@@ -341,10 +339,10 @@ void MainWindow::buildMenus() {
   panelsMenu->addSeparator();
 
   auto* terminalFullscreenAction = panelsMenu->addAction("Terminal Focus Mode");
-  terminalFullscreenAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_1));
+  terminalFullscreenAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_1));
   connect(terminalFullscreenAction, &QAction::triggered, this, &MainWindow::toggleTerminalFullscreen);
   auto* viewportFullscreenAction = panelsMenu->addAction("Viewport Focus Mode");
-  viewportFullscreenAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_2));
+  viewportFullscreenAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_2));
   connect(viewportFullscreenAction, &QAction::triggered, this, &MainWindow::toggleViewportFullscreen);
 }
 
