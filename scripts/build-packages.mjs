@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 const packages = [
   "zeus-core",
+  "zeus-ai",
   "zeus-assets",
   "zeus-audio",
   "zeus-debug",
