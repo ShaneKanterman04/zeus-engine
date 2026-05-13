@@ -2,6 +2,7 @@
 
 #include "Profile.h"
 #include "SshRunner.h"
+#include "AssetBrowserWidget.h"
 #include "TerminalWidget.h"
 
 #include <QByteArray>
@@ -85,6 +86,7 @@ class MainWindow : public QMainWindow {
   QWidget* terminalPane_ = nullptr;
   QWidget* viewportPane_ = nullptr;
   QWidget* defaultPane_ = nullptr;
+  AssetBrowserWidget* assetBrowser_ = nullptr;
   QTextEdit* textPreview_ = nullptr;
   QLabel* imagePreview_ = nullptr;
   QPlainTextEdit* log_ = nullptr;

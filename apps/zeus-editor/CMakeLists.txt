@@ -16,6 +16,8 @@ qt_add_executable(zeus-editor
   src/MainWindow.h
   src/Profile.cpp
   src/Profile.h
+  src/AssetBrowserWidget.cpp
+  src/AssetBrowserWidget.h
   src/SshRunner.cpp
   src/SshRunner.h
   src/TerminalBridge.cpp

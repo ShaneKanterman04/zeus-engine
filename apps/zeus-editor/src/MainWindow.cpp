@@ -156,6 +156,9 @@ void MainWindow::buildUi() {
   previewLayout->addWidget(imagePreview_);
   rightTabs_->addTab(previewHost, "Preview");
 
+  assetBrowser_ = new AssetBrowserWidget(rightTabs_);
+  rightTabs_->addTab(assetBrowser_, "Assets");
+
   rootSplitter_->setStretchFactor(0, 1);
   rootSplitter_->setStretchFactor(1, 3);
 
@@ -190,6 +193,7 @@ void MainWindow::buildUi() {
   statusLabel_ = new QLabel(this);
   statusBar()->addPermanentWidget(statusLabel_, 1);
   setStatus(QString("Profile %1: %2").arg(profile_.name, sshTarget(profile_.ssh)));
+  if (assetBrowser_) assetBrowser_->setContext(profile_.ssh, profile_.project.remotePath, profile_.project.ignore);
   setWorkspaceMode(WorkspaceDefault);
   restartTerminal();
 }
@@ -372,6 +376,10 @@ void MainWindow::updateEditor() {
 void MainWindow::refreshFiles() {
   profile_.project.remotePath = remotePathEdit_->text().trimmed();
   cleanupProcess(listProcess_);
+  if (assetBrowser_) {
+    assetBrowser_->setContext(profile_.ssh, profile_.project.remotePath, profile_.project.ignore);
+    assetBrowser_->refresh();
+  }
   fileTree_->clear();
   auto* root = new QTreeWidgetItem(fileTree_, {profile_.project.remotePath, "dir", ""});
   root->setData(NameColumn, Qt::UserRole, profile_.project.remotePath);
