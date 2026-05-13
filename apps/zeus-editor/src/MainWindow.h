@@ -2,6 +2,7 @@
 
 #include "Profile.h"
 #include "SshRunner.h"
+#include "TerminalWidget.h"
 
 #include <QByteArray>
 #include <QHash>
@@ -30,6 +31,7 @@ class MainWindow : public QMainWindow {
   void launchProject();
   void stopProject();
   void killStaleServer();
+  void restartTerminal();
   void reloadViewport();
   void updateEditor();
   void refreshFiles();
@@ -72,4 +74,5 @@ class MainWindow : public QMainWindow {
   QTextEdit* textPreview_ = nullptr;
   QLabel* imagePreview_ = nullptr;
   QPlainTextEdit* log_ = nullptr;
+  TerminalWidget* terminal_ = nullptr;
 };

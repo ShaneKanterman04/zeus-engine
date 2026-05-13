@@ -110,6 +110,9 @@ void MainWindow::buildUi() {
   toolbar->addWidget(killButton_);
   connect(killButton_, &QPushButton::clicked, this, &MainWindow::killStaleServer);
 
+  auto* terminalAction = toolbar->addAction("Restart Terminal");
+  connect(terminalAction, &QAction::triggered, this, &MainWindow::restartTerminal);
+
   updateButton_ = new QPushButton("Update Editor", this);
   toolbar->addWidget(updateButton_);
   connect(updateButton_, &QPushButton::clicked, this, &MainWindow::updateEditor);
@@ -144,21 +147,26 @@ void MainWindow::buildUi() {
   rootSplitter->setStretchFactor(0, 1);
   rootSplitter->setStretchFactor(1, 3);
 
-  log_ = new QPlainTextEdit(this);
+  auto* bottomTabs = new QTabWidget(this);
+  terminal_ = new TerminalWidget(bottomTabs);
+  log_ = new QPlainTextEdit(bottomTabs);
   log_->setReadOnly(true);
   log_->setMaximumBlockCount(2000);
-  log_->setMaximumHeight(180);
+  bottomTabs->addTab(terminal_, "Terminal");
+  bottomTabs->addTab(log_, "Logs");
+  bottomTabs->setMaximumHeight(240);
 
   auto* central = new QWidget(this);
   auto* layout = new QVBoxLayout(central);
   layout->setContentsMargins(6, 6, 6, 6);
   layout->addWidget(rootSplitter, 1);
-  layout->addWidget(log_);
+  layout->addWidget(bottomTabs);
   setCentralWidget(central);
 
   statusLabel_ = new QLabel(this);
   statusBar()->addPermanentWidget(statusLabel_, 1);
   setStatus(QString("Profile %1: %2").arg(profile_.name, sshTarget(profile_.ssh)));
+  restartTerminal();
 }
 
 void MainWindow::loadProfile(const QString& profileId) {
@@ -245,6 +253,11 @@ void MainWindow::killStaleServer() {
     appendLog(QString("Kill stale server error: %1").arg(error));
     killButton_->setEnabled(true);
   });
+}
+
+void MainWindow::restartTerminal() {
+  profile_.project.remotePath = remotePathEdit_->text().trimmed();
+  if (terminal_) terminal_->start(profile_.ssh, profile_.project.remotePath);
 }
 
 void MainWindow::reloadViewport() {

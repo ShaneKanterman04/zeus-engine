@@ -18,6 +18,8 @@ qt_add_executable(zeus-editor
   src/Profile.h
   src/SshRunner.cpp
   src/SshRunner.h
+  src/TerminalWidget.cpp
+  src/TerminalWidget.h
 )
 
 target_link_libraries(zeus-editor PRIVATE

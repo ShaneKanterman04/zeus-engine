@@ -8,6 +8,7 @@ V1 is a read-only remote editor:
 - Preview remote text and image files.
 - Launch the project dev server over SSH.
 - Open the running project in an embedded Qt WebEngine viewport through a local SSH tunnel.
+- Use a docked SSH terminal that starts in the remote project directory.
 
 ## Prerequisites
 
