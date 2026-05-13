@@ -1,5 +1,6 @@
 #include "TerminalWidget.h"
 
+#include <QDir>
 #include <QVBoxLayout>
 #include <QWebEnginePage>
 #include <QWebEngineSettings>
@@ -15,7 +16,7 @@ QString terminalHtml() {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.5.0/css/xterm.min.css">
+  <link rel="stylesheet" href="__XTERM_CSS__">
   <style>
     html, body { width: 100%; height: 100%; margin: 0; background: #0f1115; overflow: hidden; }
     #terminal { width: 100%; height: 100%; }
@@ -23,8 +24,8 @@ QString terminalHtml() {
 </head>
 <body>
   <div id="terminal"></div>
-  <script src="https://cdn.jsdelivr.net/npm/xterm@5.5.0/lib/xterm.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+  <script src="__XTERM_JS__"></script>
+  <script src="__XTERM_FIT_JS__"></script>
   <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
   <script>
     const terminal = new Terminal({
@@ -65,6 +66,11 @@ QString terminalHtml() {
 </body>
 </html>
 )HTML";
+}
+
+QString localAssetUrl(const QString& relativePath) {
+  const auto root = QDir(QString::fromUtf8(ZEUS_EDITOR_SOURCE_ROOT));
+  return QUrl::fromLocalFile(root.filePath(relativePath)).toString();
 }
 
 }  // namespace
@@ -133,7 +139,11 @@ void TerminalWidget::buildUi() {
 
 void TerminalWidget::loadTerminalPage() {
   if (!view_) return;
-  view_->setHtml(terminalHtml(), QUrl("qrc:/zeus-editor/terminal"));
+  auto html = terminalHtml();
+  html.replace("__XTERM_CSS__", localAssetUrl("apps/zeus-editor/vendor/xterm/css/xterm.css"));
+  html.replace("__XTERM_JS__", localAssetUrl("apps/zeus-editor/vendor/xterm/lib/xterm.js"));
+  html.replace("__XTERM_FIT_JS__", localAssetUrl("apps/zeus-editor/vendor/xterm-addon-fit/lib/xterm-addon-fit.js"));
+  view_->setHtml(html, QUrl("qrc:/zeus-editor/terminal"));
 }
 
 void TerminalWidget::flushPendingOutput() {
