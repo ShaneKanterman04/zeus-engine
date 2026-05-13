@@ -11,11 +11,17 @@ export {
   samplePolyline,
 } from "./world.js";
 export { FixedStepLoop } from "./simulation/FixedStepLoop.js";
+export { ZeusFrameMetricsSampler, createEmptyFrameMetricsSnapshot } from "./simulation/FrameMetrics.js";
 export { SystemRunner } from "./simulation/SystemRunner.js";
 export { SceneManager } from "./scenes/SceneManager.js";
 export { ComponentStore } from "./ecs/index.js";
 export { resolveEntityLightSources } from "./lighting.js";
 export type { FixedStepLoopOptions } from "./simulation/FixedStepLoop.js";
+export type {
+  ZeusFrameMetricsSample,
+  ZeusFrameMetricsSamplerOptions,
+  ZeusFrameMetricsSnapshot,
+} from "./simulation/FrameMetrics.js";
 export type { RunnableSystem } from "./simulation/SystemRunner.js";
 export type { ManagedScene } from "./scenes/SceneManager.js";
 export type { ComponentMap } from "./ecs/index.js";
