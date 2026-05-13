@@ -14,6 +14,23 @@ export type ZeusPixiLayerName =
   | "worldPrompts"
   | "debug";
 
+export type ZeusPixiSpriteOptions = {
+  tint?: string;
+  alpha?: number;
+  rotation?: number;
+  scale?: number | Vec2;
+  offset?: Vec2;
+  anchor?: Vec2;
+  label?: string;
+};
+
+export type AtlasFrameSequence = {
+  id?: string;
+  frames: readonly AtlasFrame[];
+  frameDurationSeconds?: number;
+  loop?: boolean;
+};
+
 const layerNames: ZeusPixiLayerName[] = [
   "ground",
   "groundDetail",
@@ -89,18 +106,34 @@ export class ZeusPixiRenderer {
     this.layers.get(name)?.addChild(text);
   }
 
-  addSprite(name: ZeusPixiLayerName, frame: AtlasFrame, position: Vec2, tint = "#ffffff") {
+  addSprite(name: ZeusPixiLayerName, frame: AtlasFrame, position: Vec2, optionsOrTint: string | ZeusPixiSpriteOptions = "#ffffff") {
+    const options = normalizeSpriteOptions(optionsOrTint);
+    const scale = normalizeSpriteScale(options.scale);
     const sprite = this.acquireSprite(name);
     sprite.texture = this.textureForFrame(frame);
-    sprite.label = frame.id;
-    sprite.tint = tint;
-    sprite.width = frame.width;
-    sprite.height = frame.height;
-    sprite.anchor.set(frame.anchor?.x ?? 0.5, frame.anchor?.y ?? 0.5);
-    sprite.position.set(position.x, position.y);
+    sprite.label = options.label ?? frame.id;
+    sprite.tint = options.tint ?? "#ffffff";
+    sprite.alpha = options.alpha ?? 1;
+    sprite.rotation = options.rotation ?? 0;
+    sprite.width = frame.width * scale.x;
+    sprite.height = frame.height * scale.y;
+    sprite.anchor.set(options.anchor?.x ?? frame.anchor?.x ?? 0.5, options.anchor?.y ?? frame.anchor?.y ?? 0.5);
+    sprite.position.set(position.x + (options.offset?.x ?? 0), position.y + (options.offset?.y ?? 0));
     sprite.visible = true;
     this.layers.get(name)?.addChild(sprite);
     return sprite;
+  }
+
+  addAnimatedSprite(
+    name: ZeusPixiLayerName,
+    sequence: AtlasFrameSequence,
+    position: Vec2,
+    elapsedSeconds: number,
+    optionsOrTint: string | ZeusPixiSpriteOptions = "#ffffff",
+  ) {
+    const frame = resolveAtlasFrameSequence(sequence, elapsedSeconds);
+    if (!frame) return undefined;
+    return this.addSprite(name, frame, position, optionsOrTint);
   }
 
   async loadAtlasTextures(assets: AssetManifestRegistry, atlasIds: string[], basePath = "") {
@@ -145,6 +178,25 @@ export class ZeusPixiRenderer {
     this.qualityMode = mode;
     this.app.ticker.maxFPS = mode === "low" ? 30 : 0;
   }
+}
+
+export function resolveAtlasFrameSequence(sequence: AtlasFrameSequence, elapsedSeconds: number) {
+  if (sequence.frames.length === 0) return undefined;
+  const frameDuration = Math.max(0.001, sequence.frameDurationSeconds ?? 1 / 12);
+  const elapsed = Math.max(0, elapsedSeconds);
+  const rawIndex = Math.floor(elapsed / frameDuration);
+  const index = sequence.loop === false ? Math.min(rawIndex, sequence.frames.length - 1) : rawIndex % sequence.frames.length;
+  return sequence.frames[index];
+}
+
+function normalizeSpriteOptions(optionsOrTint: string | ZeusPixiSpriteOptions): ZeusPixiSpriteOptions {
+  if (typeof optionsOrTint === "string") return { tint: optionsOrTint };
+  return optionsOrTint;
+}
+
+function normalizeSpriteScale(scale: number | Vec2 | undefined): Vec2 {
+  if (typeof scale === "number") return { x: scale, y: scale };
+  return scale ?? { x: 1, y: 1 };
 }
 
 export { AtlasFrameRegistry, validateAtlasManifest } from "./atlas/AtlasManifest.js";
