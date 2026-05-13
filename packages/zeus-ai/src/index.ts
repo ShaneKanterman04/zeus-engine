@@ -41,6 +41,11 @@ export type ZeusThreatMeterOptions = {
   max?: number;
 };
 
+export type ZeusAiSteeringTarget = {
+  position: Vec2;
+  weight?: number;
+};
+
 export const defaultThreatStageThresholds: ZeusThreatStageThresholds = {
   interested: 20,
   stalking: 55,
@@ -95,4 +100,43 @@ export function classifyThreatStage(value: number, thresholds: ZeusThreatStageTh
   if (value >= thresholds.stalking) return "stalking";
   if (value >= thresholds.interested) return "interested";
   return "quiet";
+}
+
+export function steerToward(current: Vec2, target: Vec2, maxDistance: number): Vec2 {
+  return steer(current, target, Math.max(0, maxDistance));
+}
+
+export function steerAway(current: Vec2, threat: Vec2, maxDistance: number): Vec2 {
+  return steer(current, { x: current.x + (current.x - threat.x), y: current.y + (current.y - threat.y) }, Math.max(0, maxDistance));
+}
+
+export function weightedTarget(targets: readonly ZeusAiSteeringTarget[]): Vec2 | undefined {
+  if (targets.length === 0) return undefined;
+  let weightTotal = 0;
+  let x = 0;
+  let y = 0;
+  for (const target of targets) {
+    const weight = Math.max(0, target.weight ?? 1);
+    weightTotal += weight;
+    x += target.position.x * weight;
+    y += target.position.y * weight;
+  }
+  if (weightTotal <= 0) return undefined;
+  return { x: x / weightTotal, y: y / weightTotal };
+}
+
+export function formatThreatOverlay(stage: ZeusThreatStage, value: number, messages: readonly string[] = []) {
+  return [`Threat ${stage} ${Math.round(value)}`, ...messages].join("\n");
+}
+
+function steer(current: Vec2, target: Vec2, maxDistance: number): Vec2 {
+  const dx = target.x - current.x;
+  const dy = target.y - current.y;
+  const length = Math.hypot(dx, dy);
+  if (length === 0 || maxDistance === 0) return { ...current };
+  const distanceToMove = Math.min(length, maxDistance);
+  return {
+    x: current.x + (dx / length) * distanceToMove,
+    y: current.y + (dy / length) * distanceToMove,
+  };
 }
