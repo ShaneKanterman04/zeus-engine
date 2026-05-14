@@ -77,6 +77,11 @@ void AssetStudioWidget::focusPrompt() {
   if (promptEdit_) promptEdit_->setFocus();
 }
 
+void AssetStudioWidget::refreshStyleProfile() {
+  if (process_) return;
+  startStyleProfileRefresh(false);
+}
+
 void AssetStudioWidget::generateConcepts() {
   if (process_) return;
   if (assetRequestText().trimmed().isEmpty()) {
@@ -86,12 +91,18 @@ void AssetStudioWidget::generateConcepts() {
     updateGenerateState();
     return;
   }
+  if (!styleProfileExists()) {
+    pendingConceptAfterStyleProfile_ = true;
+    startStyleProfileRefresh(true);
+    return;
+  }
   currentRunPath_ = nextRunPath();
   activeRunPath_ = currentRunPath_;
   refinedPath_.clear();
   clearImages();
-  const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 %3 --output-last-message %4 %5")
+  const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 %3 %4 --output-last-message %5 %6")
                            .arg(shellQuote(currentRunPath_), shellQuote(remoteRoot_), QString(kCodexYoloFlag),
+                                contactSheetArgs(),
                                 shellQuote(QString("%1/codex-final.md").arg(currentRunPath_)), shellQuote(codexConceptPrompt(currentRunPath_)));
   startRemoteCommand(JobKind::Concepts, "Generating concept sheet", command);
 }
@@ -99,11 +110,18 @@ void AssetStudioWidget::generateConcepts() {
 void AssetStudioWidget::refineSelected() {
   const auto selectedPath = selectedImagePath();
   if (process_ || selectedPath.isEmpty()) return;
+  if (!styleProfileExists()) {
+    appendLog("Refresh the style profile before refining selected concepts.\n");
+    phaseLabel_->setText("Style profile required");
+    summaryLabel_->setText(QString("Missing style profile: %1").arg(styleProfileJsonPath()));
+    emit statusMessage("Asset Studio needs a style profile");
+    return;
+  }
   const auto refineRunPath = QString("%1/refine-%2").arg(currentRunPath_, QDateTime::currentDateTimeUtc().toString("HHmmss"));
   activeRunPath_ = refineRunPath;
   refinedPath_ = QString("%1/runtime-candidate.png").arg(refineRunPath);
-  const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 %3 --image %4 --output-last-message %5 %6")
-                           .arg(shellQuote(refineRunPath), shellQuote(remoteRoot_), QString(kCodexYoloFlag), shellQuote(selectedPath),
+  const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 %3 %4 --image %5 --output-last-message %6 %7")
+                           .arg(shellQuote(refineRunPath), shellQuote(remoteRoot_), QString(kCodexYoloFlag), contactSheetArgs(), shellQuote(selectedPath),
                                 shellQuote(QString("%1/codex-final.md").arg(refineRunPath)), shellQuote(codexRefinePrompt(refineRunPath, selectedPath)));
   startRemoteCommand(JobKind::Refine, "Refining selected concept", command);
 }
@@ -184,6 +202,7 @@ void AssetStudioWidget::buildUi() {
   auto* buttons = new QHBoxLayout();
   buttons->setSpacing(8);
   generateButton_ = new QPushButton("Generate Concepts", this);
+  styleProfileButton_ = new QPushButton("Refresh Style Profile", this);
   refineButton_ = new QPushButton("Refine Selected", this);
   promoteButton_ = new QPushButton("Promote", this);
   packButton_ = new QPushButton("Pack + Validate", this);
@@ -193,6 +212,7 @@ void AssetStudioWidget::buildUi() {
   generateButton_->setEnabled(false);
   cancelButton_->setEnabled(false);
   buttons->addWidget(generateButton_);
+  buttons->addWidget(styleProfileButton_);
   buttons->addWidget(refineButton_);
   buttons->addWidget(promoteButton_);
   buttons->addWidget(packButton_);
@@ -240,6 +260,7 @@ void AssetStudioWidget::buildUi() {
   root->addWidget(selectedLabel_);
   root->addLayout(body, 1);
 
+  connect(styleProfileButton_, &QPushButton::clicked, this, &AssetStudioWidget::refreshStyleProfile);
   connect(generateButton_, &QPushButton::clicked, this, &AssetStudioWidget::generateConcepts);
   connect(refineButton_, &QPushButton::clicked, this, &AssetStudioWidget::refineSelected);
   connect(promoteButton_, &QPushButton::clicked, this, &AssetStudioWidget::promoteSelected);
@@ -316,6 +337,26 @@ void AssetStudioWidget::finishJob(int code, QProcess::ExitStatus status) {
     emit statusMessage("Asset Studio job failed");
     return;
   }
+  if (finishedKind == JobKind::StyleProfile) {
+    if (!styleProfileExists()) {
+      updateStep(RunStep::StyleProfile, StepState::Failed, QString("Missing %1").arg(styleProfileJsonPath()));
+      phaseLabel_->setText("Style profile failed");
+      summaryLabel_->setText(QString("Codex finished but did not write the style profile: %1").arg(styleProfileJsonPath()));
+      pendingConceptAfterStyleProfile_ = false;
+      emit statusMessage("Asset Studio style profile failed");
+      return;
+    }
+    updateStep(RunStep::StyleProfile, StepState::Done, "Cached style profile ready");
+    updateStep(RunStep::Codex, StepState::Done, "Codex exploration completed");
+    summaryLabel_->setText(QString("Style profile refreshed: %1").arg(styleProfileJsonPath()));
+    phaseLabel_->setText("Style profile ready");
+    emit statusMessage("Asset Studio style profile ready");
+    if (pendingConceptAfterStyleProfile_) {
+      pendingConceptAfterStyleProfile_ = false;
+      QTimer::singleShot(0, this, &AssetStudioWidget::generateConcepts);
+    }
+    return;
+  }
   if (finishedKind == JobKind::Concepts || finishedKind == JobKind::Refine) {
     updateStep(RunStep::Codex, StepState::Done, "Codex exited successfully");
     updateStep(RunStep::Generate, StepState::Done, "Generation command completed");
@@ -366,6 +407,7 @@ void AssetStudioWidget::appendProcessOutput(const QString& text) {
 void AssetStudioWidget::setBusy(bool busy, const QString& label) {
   updateGenerateState();
   packButton_->setEnabled(!busy);
+  styleProfileButton_->setEnabled(!busy);
   cancelButton_->setEnabled(busy);
   phaseLabel_->setText(busy ? QString("%1... 0s elapsed").arg(label) : phaseLabel_->text());
   handleSelectionChanged();
@@ -379,7 +421,11 @@ void AssetStudioWidget::beginRun(JobKind kind, const QString& label) {
   resetProgress();
   summaryLabel_->setText(QString("Run folder: %1").arg(activeRunPath_.isEmpty() ? currentRunPath_ : activeRunPath_));
   updateStep(RunStep::Prepare, StepState::Done, "Inputs checked and run folder selected");
-  if (kind == JobKind::Concepts || kind == JobKind::Refine) {
+  if (kind == JobKind::StyleProfile) {
+    updateStep(RunStep::StyleProfile, StepState::Running, "Codex is exploring Last Hearth style sources");
+    updateStep(RunStep::Codex, StepState::Running, "Starting Codex CLI");
+  } else if (kind == JobKind::Concepts || kind == JobKind::Refine) {
+    updateStep(RunStep::StyleProfile, StepState::Done, "Cached style profile loaded");
     updateStep(RunStep::Codex, StepState::Running, "Starting Codex CLI");
     updateStep(RunStep::Generate, StepState::Running, "Waiting for image generation output");
   } else if (kind == JobKind::Promote) {
@@ -417,6 +463,7 @@ void AssetStudioWidget::failRun(const QString& message) {
   auto failedStep = RunStep::Codex;
   if (activeRunKind_ == JobKind::Promote) failedStep = RunStep::Promote;
   if (activeRunKind_ == JobKind::PackValidate) failedStep = RunStep::Validate;
+  if (activeRunKind_ == JobKind::StyleProfile) failedStep = RunStep::StyleProfile;
   updateStep(failedStep, StepState::Failed, message);
   phaseLabel_->setText("Asset Studio job failed");
   summaryLabel_->setText(message);
@@ -457,6 +504,8 @@ QString AssetStudioWidget::stepName(RunStep step) const {
   switch (step) {
     case RunStep::Prepare:
       return "Prepare run";
+    case RunStep::StyleProfile:
+      return "Style Profile";
     case RunStep::Codex:
       return "Start Codex";
     case RunStep::Generate:
@@ -498,6 +547,70 @@ QString AssetStudioWidget::statePrefix(StepState state) const {
 bool AssetStudioWidget::isImagePath(const QString& path) const {
   const auto suffix = QFileInfo(path).suffix().toLower();
   return suffix == "png" || suffix == "jpg" || suffix == "jpeg" || suffix == "webp";
+}
+
+bool AssetStudioWidget::styleProfileExists() const {
+  return QFileInfo(styleProfileJsonPath()).isFile() && QFileInfo(styleProfileMarkdownPath()).isFile();
+}
+
+QString AssetStudioWidget::styleProfileDir() const {
+  return QString("%1/games/last-hearth/assets_source/style-profiles").arg(remoteRoot_);
+}
+
+QString AssetStudioWidget::styleProfileJsonPath() const {
+  return QString("%1/last-hearth-style-profile.json").arg(styleProfileDir());
+}
+
+QString AssetStudioWidget::styleProfileMarkdownPath() const {
+  return QString("%1/last-hearth-style-profile.md").arg(styleProfileDir());
+}
+
+QStringList AssetStudioWidget::contactSheetPaths() const {
+  return {
+      QString("%1/games/last-hearth/assets_source/reviews/environment-contact-sheet.png").arg(remoteRoot_),
+      QString("%1/games/last-hearth/assets_source/reviews/core-entities-contact-sheet.png").arg(remoteRoot_),
+  };
+}
+
+QString AssetStudioWidget::contactSheetArgs() {
+  QStringList args;
+  for (const auto& path : contactSheetPaths()) {
+    if (QFileInfo(path).isFile()) args << QString("--image %1").arg(shellQuote(path));
+  }
+  if (args.size() < contactSheetPaths().size()) {
+    appendLog("Style reference warning: one or more contact sheets are missing; continuing with available references.\n");
+  }
+  return args.join(' ');
+}
+
+QString AssetStudioWidget::styleProfilePrompt() const {
+  return QString(
+             "Explore the Last Hearth repository and create a cached art direction profile for Asset Studio. "
+             "Target style: future painterly Last Hearth source art, not current low-resolution runtime pixel art. "
+             "Use the attached contact sheets as visual reference for subject identity, scale, silhouettes, palette restraint, and gameplay readability, "
+             "but explicitly distinguish current runtime pixel constraints from the future painterly source-art target. "
+             "Read these project sources when present: docs/last-hearth/art-content-pipeline.md, docs/zeus/content-pipeline.md, "
+             "games/last-hearth/assets_source/prompts/prototype-prompts.json, games/last-hearth/assets_source/metadata/prototype-assets.metadata.json, "
+             "games/last-hearth/assets_source/core-sprite-pack.config.mjs, games/last-hearth/assets_source/environment-sprite-pack.config.mjs, "
+             "games/last-hearth/assets_source/last-hearth-pixel-templates.mjs, games/last-hearth/assets_game/atlases/*.atlas.json, "
+             "games/last-hearth/content/**/*.json, and approved assets under games/last-hearth/assets_source/approved. "
+             "Write files exactly at %1 and %2. The JSON must include styleVersion, targetStyle, currentRuntimeStyle, cameraComposition, palette, lighting, "
+             "silhouetteRules, scaleReadabilityRules, forbiddenTraits, domainGuidance, referenceFiles, referenceImages, outputContract, and styleComplianceChecklist. "
+             "The Markdown must be a concise human-readable brief. Verify both files exist before your final response.")
+      .arg(styleProfileJsonPath(), styleProfileMarkdownPath());
+}
+
+void AssetStudioWidget::startStyleProfileRefresh(bool continueGeneration) {
+  if (remoteRoot_.trimmed().isEmpty()) {
+    appendLog("Remote project path is empty.\n");
+    return;
+  }
+  pendingConceptAfterStyleProfile_ = continueGeneration;
+  activeRunPath_ = styleProfileDir();
+  const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 %3 %4 --output-last-message %5 %6")
+                           .arg(shellQuote(styleProfileDir()), shellQuote(remoteRoot_), QString(kCodexYoloFlag), contactSheetArgs(),
+                                shellQuote(QString("%1/codex-style-profile-final.md").arg(styleProfileDir())), shellQuote(styleProfilePrompt()));
+  startRemoteCommand(JobKind::StyleProfile, "Refreshing style profile", command);
 }
 
 QString AssetStudioWidget::assetRequestText() const {
@@ -651,26 +764,29 @@ QString AssetStudioWidget::selectedImagePath() const {
 QString AssetStudioWidget::codexConceptPrompt(const QString& runPath) const {
   return QString(
              "$imagegen Create a concept sheet for a Last Hearth game asset. Slug: %1. User request: %2. Domain: %3. "
-             "Style: cold late-autumn frontier survival, readable gameplay silhouette, no text, no watermark. "
+             "Before generating, read the cached style profile at %5 and follow it. Target the future painterly Last Hearth source-art style, "
+             "using the attached contact sheets only as reference for identity, scale, silhouette, palette restraint, and gameplay readability. "
+             "Do not default to generic fantasy, modern survival-game promo art, photorealism, or the current pixel-art runtime look. "
              "Use case: stylized-concept. Asset type: source concept sheet for Last Hearth game art, not final runtime art. "
              "Create four distinct candidates plus a sheet. Save files exactly in %4 as concept-sheet.png, concept-01.png, concept-02.png, concept-03.png, concept-04.png, manifest.json. "
              "You are running with filesystem access; create the run folder if missing, copy the generated PNGs into it with exactly those filenames, "
              "write manifest.json, and verify all six files exist before your final response. Do not leave the generated images only in Codex default output storage. "
              "If any copy or write fails, report the exact generated_images source directory and failed destination. "
-             "The JSON manifest must include slug, prompt, files, styleNotes, targetUse, and reviewChecklist.")
-      .arg(slug(), assetRequestText(), domainCombo_->currentText(), runPath);
+             "The JSON manifest must include slug, prompt, files, styleProfilePath, styleVersion, styleSummary, referenceImages, styleComplianceChecklist, styleNotes, targetUse, and reviewChecklist.")
+      .arg(slug(), assetRequestText(), domainCombo_->currentText(), runPath, styleProfileJsonPath());
 }
 
 QString AssetStudioWidget::codexRefinePrompt(const QString& runPath, const QString& selectedPath) const {
   return QString(
              "$imagegen Refine the attached/selected Last Hearth concept into a runtime-ready PNG candidate. "
-             "Slug: %1. Source image: %2. User request: %3. Preserve strong silhouette and transparent/clean background where appropriate. "
+             "Slug: %1. Source image: %2. User request: %3. Before generating, read the cached style profile at %5 and follow it. "
+             "Target the future painterly Last Hearth source-art style while preserving gameplay readability, strong silhouette, and a transparent/clean background where appropriate. "
              "Save exactly in %4 as refined.png, runtime-candidate.png, candidate.metadata.json, qa.md. "
              "You are running with filesystem access; create the run folder if missing, copy generated PNGs into it with exactly those filenames, "
              "write candidate.metadata.json and qa.md, and verify all four files exist before your final response. "
              "Do not leave the generated images only in Codex default output storage. If any copy or write fails, report the exact generated_images source directory and failed destination. "
-             "Metadata must include slug, sourceConcept, prompt, provenance generated, reviewStatus draft, commercialUseReviewed false, accessibilityNotes, and tags.")
-      .arg(slug(), selectedPath, assetRequestText(), runPath);
+             "Metadata must include slug, sourceConcept, prompt, styleProfilePath, styleVersion, styleSummary, referenceImages, styleComplianceChecklist, provenance generated, reviewStatus draft, commercialUseReviewed false, accessibilityNotes, and tags.")
+      .arg(slug(), selectedPath, assetRequestText(), runPath, styleProfileJsonPath());
 }
 
 QString AssetStudioWidget::packCommand() const {

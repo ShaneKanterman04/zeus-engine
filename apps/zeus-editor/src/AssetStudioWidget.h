@@ -35,6 +35,7 @@ class AssetStudioWidget : public QWidget {
   void assetsChanged();
 
  private slots:
+  void refreshStyleProfile();
   void generateConcepts();
   void refineSelected();
   void promoteSelected();
@@ -44,9 +45,9 @@ class AssetStudioWidget : public QWidget {
   void updateGenerateState();
 
  private:
-  enum class JobKind { None, Concepts, Refine, Promote, PackValidate, List, Thumbnail };
+  enum class JobKind { None, StyleProfile, Concepts, Refine, Promote, PackValidate, List, Thumbnail };
   enum class StepState { Waiting, Running, Done, Failed, Canceled };
-  enum class RunStep { Prepare, Codex, Generate, Verify, Thumbnails, Review, Refine, Promote, Validate, Count };
+  enum class RunStep { Prepare, StyleProfile, Codex, Generate, Verify, Thumbnails, Review, Refine, Promote, Validate, Count };
 
   struct RemoteImage {
     QString path;
@@ -77,6 +78,14 @@ class AssetStudioWidget : public QWidget {
   QString stepName(RunStep step) const;
   QString statePrefix(StepState state) const;
   bool isImagePath(const QString& path) const;
+  bool styleProfileExists() const;
+  QString styleProfileDir() const;
+  QString styleProfileJsonPath() const;
+  QString styleProfileMarkdownPath() const;
+  QString styleProfilePrompt() const;
+  QString contactSheetArgs();
+  QStringList contactSheetPaths() const;
+  void startStyleProfileRefresh(bool continueGeneration);
   QString assetRequestText() const;
   void refreshRunImages();
   void loadNextThumbnail();
@@ -103,6 +112,7 @@ class AssetStudioWidget : public QWidget {
   JobKind jobKind_ = JobKind::None;
   JobKind activeRunKind_ = JobKind::None;
   bool cancelRequested_ = false;
+  bool pendingConceptAfterStyleProfile_ = false;
   QDateTime runStartedAt_;
   QString activeRunLabel_;
   QByteArray listBuffer_;
@@ -117,6 +127,7 @@ class AssetStudioWidget : public QWidget {
   QLineEdit* promotePathEdit_ = nullptr;
   QTextEdit* promptEdit_ = nullptr;
   QPushButton* generateButton_ = nullptr;
+  QPushButton* styleProfileButton_ = nullptr;
   QPushButton* refineButton_ = nullptr;
   QPushButton* promoteButton_ = nullptr;
   QPushButton* packButton_ = nullptr;
