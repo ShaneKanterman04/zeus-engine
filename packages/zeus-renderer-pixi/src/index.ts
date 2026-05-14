@@ -260,6 +260,61 @@ export class ZeusPixiCulledSpriteLayer {
   }
 }
 
+export type ZeusPixiChunkLayerStats = {
+  activeChunks: number;
+  children: number;
+};
+
+export class ZeusPixiChunkLayer {
+  private readonly chunks = new Map<string, Container>();
+
+  constructor(
+    private readonly renderer: ZeusPixiRenderer,
+    private readonly layer: ZeusPixiLayerName,
+  ) {}
+
+  sync(activeKeys: readonly string[]) {
+    const active = new Set(activeKeys);
+    for (const [key, container] of this.chunks) {
+      if (active.has(key)) continue;
+      container.removeFromParent();
+      container.destroy({ children: true });
+      this.chunks.delete(key);
+    }
+    for (const key of activeKeys) this.containerFor(key);
+    return this.stats();
+  }
+
+  containerFor(key: string) {
+    const existing = this.chunks.get(key);
+    if (existing) return existing;
+    const container = new Container();
+    container.label = `chunk:${key}`;
+    this.chunks.set(key, container);
+    this.renderer.layers.get(this.layer)?.addChild(container);
+    return container;
+  }
+
+  clearChunk(key: string) {
+    this.containerFor(key).removeChildren();
+  }
+
+  clear() {
+    for (const container of this.chunks.values()) {
+      container.removeFromParent();
+      container.destroy({ children: true });
+    }
+    this.chunks.clear();
+  }
+
+  stats(): ZeusPixiChunkLayerStats {
+    return {
+      activeChunks: this.chunks.size,
+      children: [...this.chunks.values()].reduce((sum, chunk) => sum + chunk.children.length, 0),
+    };
+  }
+}
+
 function spriteInViewport(
   instance: ZeusPixiCulledSpriteInstance,
   viewport: { x: number; y: number; width: number; height: number },

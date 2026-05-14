@@ -17,6 +17,15 @@ export { SceneManager } from "./scenes/SceneManager.js";
 export { ComponentStore } from "./ecs/index.js";
 export { resolveEntityLightSources } from "./lighting.js";
 export { ZeusSpatialHashGrid } from "./spatial/SpatialHashGrid.js";
+export {
+  zeusActiveChunkKeys,
+  zeusChunkBounds,
+  zeusChunkCoordFromKey,
+  zeusChunkKey,
+  zeusRectIntersectsChunk,
+  zeusWorldToChunkCoord,
+} from "./chunks/ChunkGrid.js";
+export { ZeusChunkStreamer } from "./chunks/ChunkStreamer.js";
 export type { FixedStepLoopOptions } from "./simulation/FixedStepLoop.js";
 export type {
   ZeusFrameMetricsSample,
@@ -29,3 +38,11 @@ export type { ComponentMap } from "./ecs/index.js";
 export type { ZeusAmbientLight, ZeusLightSource, ZeusResolvedLightSource } from "./lighting.js";
 export type { Entity, EntityId, InputState, Vec2, ZeusScene, ZeusSystem } from "./types.js";
 export type { ZeusSpatialItem, ZeusSpatialQueryRect } from "./spatial/SpatialHashGrid.js";
+export type {
+  ZeusActiveChunkOptions,
+  ZeusChunkCoord,
+  ZeusChunkGridOptions,
+  ZeusChunkKey,
+  ZeusChunkRect,
+} from "./chunks/ChunkGrid.js";
+export type { ZeusChunkProvider, ZeusChunkStreamerOptions, ZeusChunkStreamerState } from "./chunks/ChunkStreamer.js";

@@ -51,9 +51,11 @@ export {
 } from "./sprites/PixelDetail.js";
 export type { PixelBounds } from "./sprites/PixelDetail.js";
 export { generateFoliagePlacements } from "./foliage/FoliagePlacement.js";
+export { validateChunkMap } from "./world/ChunkMapValidation.js";
 export type {
   ZeusFoliagePlacementInstance,
   ZeusFoliagePlacementOptions,
   ZeusFoliagePlacementRoute,
   ZeusFoliagePlacementZone,
 } from "./foliage/FoliagePlacement.js";
+export type { ZeusChunkMapValidationChunk, ZeusChunkMapValidationOptions } from "./world/ChunkMapValidation.js";
