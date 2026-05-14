@@ -22,6 +22,8 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
 namespace {
 
 constexpr int kThumbSize = 160;
@@ -47,6 +49,12 @@ void stopProcess(QProcess*& process) {
 
 QString imageName(const QString& path) {
   return QFileInfo(path).fileName();
+}
+
+qint64 parseSize(const QString& text) {
+  bool ok = false;
+  const auto size = text.toLongLong(&ok);
+  return ok ? size : 0;
 }
 
 }  // namespace
@@ -79,6 +87,7 @@ void AssetStudioWidget::generateConcepts() {
     return;
   }
   currentRunPath_ = nextRunPath();
+  activeRunPath_ = currentRunPath_;
   refinedPath_.clear();
   clearImages();
   const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 %3 --output-last-message %4 %5")
@@ -91,6 +100,7 @@ void AssetStudioWidget::refineSelected() {
   const auto selectedPath = selectedImagePath();
   if (process_ || selectedPath.isEmpty()) return;
   const auto refineRunPath = QString("%1/refine-%2").arg(currentRunPath_, QDateTime::currentDateTimeUtc().toString("HHmmss"));
+  activeRunPath_ = refineRunPath;
   refinedPath_ = QString("%1/runtime-candidate.png").arg(refineRunPath);
   const auto command = QString("mkdir -p %1 && cd %2 && codex exec --cd %2 %3 --image %4 --output-last-message %5 %6")
                            .arg(shellQuote(refineRunPath), shellQuote(remoteRoot_), QString(kCodexYoloFlag), shellQuote(selectedPath),
@@ -119,6 +129,7 @@ void AssetStudioWidget::runPackAndValidate() {
 
 void AssetStudioWidget::cancelJob() {
   if (process_) {
+    cancelRequested_ = true;
     appendLog("Cancelling active job...\n");
     process_->terminate();
     QTimer::singleShot(1500, this, [this]() {
@@ -192,6 +203,16 @@ void AssetStudioWidget::buildUi() {
   phaseLabel_->setObjectName("panelHeading");
   selectedLabel_ = new QLabel("No image selected", this);
   selectedLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  summaryLabel_ = new QLabel("Ready to generate or refine assets.", this);
+  summaryLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  summaryLabel_->setWordWrap(true);
+
+  progressList_ = new QListWidget(this);
+  progressList_->setSelectionMode(QAbstractItemView::NoSelection);
+  progressList_->setFocusPolicy(Qt::NoFocus);
+  progressList_->setMaximumHeight(176);
+  progressList_->setUniformItemSizes(true);
+  resetProgress();
 
   auto* body = new QHBoxLayout();
   body->setSpacing(10);
@@ -214,6 +235,8 @@ void AssetStudioWidget::buildUi() {
   root->addWidget(promptEdit_);
   root->addLayout(buttons);
   root->addWidget(phaseLabel_);
+  root->addWidget(progressList_);
+  root->addWidget(summaryLabel_);
   root->addWidget(selectedLabel_);
   root->addLayout(body, 1);
 
@@ -225,6 +248,10 @@ void AssetStudioWidget::buildUi() {
   connect(imageList_, &QListWidget::itemSelectionChanged, this, &AssetStudioWidget::handleSelectionChanged);
   connect(slugEdit_, &QLineEdit::textChanged, this, &AssetStudioWidget::updateGenerateState);
   connect(promptEdit_, &QTextEdit::textChanged, this, &AssetStudioWidget::updateGenerateState);
+
+  elapsedTimer_ = new QTimer(this);
+  elapsedTimer_->setInterval(1000);
+  connect(elapsedTimer_, &QTimer::timeout, this, &AssetStudioWidget::updateElapsedStatus);
 }
 
 bool AssetStudioWidget::useLocalExecution() const {
@@ -255,12 +282,14 @@ void AssetStudioWidget::startRemoteCommand(JobKind kind, const QString& label, c
   }
   stopProcess(process_);
   jobKind_ = kind;
+  beginRun(kind, label);
   process_ = startCommand(command);
   setBusy(true, label);
   appendLog(QString("\n[%1] %2\n%3\n").arg(QDateTime::currentDateTime().toString("HH:mm:ss"), label, command));
-  connect(process_, &QProcess::readyRead, this, [this]() { appendLog(QString::fromUtf8(process_->readAll())); });
+  connect(process_, &QProcess::readyRead, this, [this]() { appendProcessOutput(QString::fromUtf8(process_->readAll())); });
   connect(process_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
     appendLog(QString("Process error: %1\n").arg(error));
+    failRun(QString("Process error: %1").arg(error));
   });
   connect(process_, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this, &AssetStudioWidget::finishJob);
   emit statusMessage(label);
@@ -271,10 +300,40 @@ void AssetStudioWidget::finishJob(int code, QProcess::ExitStatus status) {
   appendLog(QString("\nFinished: code=%1 status=%2\n").arg(code).arg(status));
   stopProcess(process_);
   jobKind_ = JobKind::None;
+  if (elapsedTimer_) elapsedTimer_->stop();
   setBusy(false);
-  if ((finishedKind == JobKind::Concepts || finishedKind == JobKind::Refine) && code == 0) refreshRunImages();
-  if ((finishedKind == JobKind::Promote || finishedKind == JobKind::PackValidate) && code == 0) emit assetsChanged();
-  emit statusMessage(code == 0 ? "Asset Studio ready" : "Asset Studio job failed");
+  if (cancelRequested_ || status == QProcess::CrashExit) {
+    const auto canceledStep = finishedKind == JobKind::Promote ? RunStep::Promote : finishedKind == JobKind::PackValidate ? RunStep::Validate : RunStep::Codex;
+    updateStep(canceledStep, StepState::Canceled, "Process stopped before completion");
+    phaseLabel_->setText("Canceled");
+    summaryLabel_->setText("Run canceled before Asset Studio could verify output files.");
+    cancelRequested_ = false;
+    emit statusMessage("Asset Studio canceled");
+    return;
+  }
+  if (code != 0) {
+    failRun(QString("Command failed with exit code %1").arg(code));
+    emit statusMessage("Asset Studio job failed");
+    return;
+  }
+  if (finishedKind == JobKind::Concepts || finishedKind == JobKind::Refine) {
+    updateStep(RunStep::Codex, StepState::Done, "Codex exited successfully");
+    updateStep(RunStep::Generate, StepState::Done, "Generation command completed");
+    refreshRunImages();
+    return;
+  }
+  if (finishedKind == JobKind::Promote) {
+    updateStep(RunStep::Promote, StepState::Done, "Image copied to project asset path");
+    summaryLabel_->setText("Promotion completed. Asset browser and file tree are refreshing.");
+    emit assetsChanged();
+  }
+  if (finishedKind == JobKind::PackValidate) {
+    updateStep(RunStep::Validate, StepState::Done, "Pack and validation command completed");
+    summaryLabel_->setText("Pack and validation completed successfully.");
+    emit assetsChanged();
+  }
+  phaseLabel_->setText("Asset Studio ready");
+  emit statusMessage("Asset Studio ready");
 }
 
 void AssetStudioWidget::appendLog(const QString& text) {
@@ -288,12 +347,157 @@ void AssetStudioWidget::appendLog(const QString& text) {
   log_->moveCursor(QTextCursor::End);
 }
 
+void AssetStudioWidget::appendProcessOutput(const QString& text) {
+  appendLog(text);
+  if (text.contains("OpenAI Codex", Qt::CaseInsensitive) || text.contains("session id:", Qt::CaseInsensitive)) {
+    updateStep(RunStep::Codex, StepState::Running, "Codex session started");
+  }
+  if (text.contains("imagegen", Qt::CaseInsensitive) || text.contains("generated", Qt::CaseInsensitive)) {
+    updateStep(RunStep::Generate, StepState::Running, "Image generation in progress");
+  }
+  if (text.contains("verified", Qt::CaseInsensitive) || text.contains("Files verified", Qt::CaseInsensitive)) {
+    updateStep(RunStep::Verify, StepState::Running, "Codex reported file verification");
+  }
+  if (text.contains("error", Qt::CaseInsensitive) || text.contains("failed", Qt::CaseInsensitive)) {
+    summaryLabel_->setText("Codex reported an error. Asset Studio will verify files when the command exits.");
+  }
+}
+
 void AssetStudioWidget::setBusy(bool busy, const QString& label) {
   updateGenerateState();
   packButton_->setEnabled(!busy);
   cancelButton_->setEnabled(busy);
-  phaseLabel_->setText(busy ? QString("%1... this can take a while").arg(label) : "Idle");
+  phaseLabel_->setText(busy ? QString("%1... 0s elapsed").arg(label) : phaseLabel_->text());
   handleSelectionChanged();
+}
+
+void AssetStudioWidget::beginRun(JobKind kind, const QString& label) {
+  activeRunKind_ = kind;
+  activeRunLabel_ = label;
+  cancelRequested_ = false;
+  runStartedAt_ = QDateTime::currentDateTime();
+  resetProgress();
+  summaryLabel_->setText(QString("Run folder: %1").arg(activeRunPath_.isEmpty() ? currentRunPath_ : activeRunPath_));
+  updateStep(RunStep::Prepare, StepState::Done, "Inputs checked and run folder selected");
+  if (kind == JobKind::Concepts || kind == JobKind::Refine) {
+    updateStep(RunStep::Codex, StepState::Running, "Starting Codex CLI");
+    updateStep(RunStep::Generate, StepState::Running, "Waiting for image generation output");
+  } else if (kind == JobKind::Promote) {
+    updateStep(RunStep::Promote, StepState::Running, "Copying selected image");
+  } else if (kind == JobKind::PackValidate) {
+    updateStep(RunStep::Validate, StepState::Running, "Running pack and validation commands");
+  }
+  if (elapsedTimer_) elapsedTimer_->start();
+}
+
+void AssetStudioWidget::resetProgress() {
+  if (!progressList_) return;
+  progressItems_.clear();
+  progressList_->clear();
+  progressItems_.resize(static_cast<int>(RunStep::Count));
+  for (int i = 0; i < static_cast<int>(RunStep::Count); ++i) {
+    const auto step = static_cast<RunStep>(i);
+    auto* item = new QListWidgetItem(QString("%1 %2").arg(statePrefix(StepState::Waiting), stepName(step)));
+    progressList_->addItem(item);
+    progressItems_[i] = item;
+  }
+}
+
+void AssetStudioWidget::updateStep(RunStep step, StepState state, const QString& detail) {
+  const auto index = static_cast<int>(step);
+  auto* item = index >= 0 && index < progressItems_.size() ? progressItems_[index] : nullptr;
+  if (!item) return;
+  const auto stamp = QDateTime::currentDateTime().toString("HH:mm:ss");
+  const auto suffix = detail.isEmpty() ? QString() : QString(" - %1").arg(detail);
+  item->setText(QString("%1 %2 [%3]%4").arg(statePrefix(state), stepName(step), stamp, suffix));
+}
+
+void AssetStudioWidget::failRun(const QString& message) {
+  if (elapsedTimer_) elapsedTimer_->stop();
+  auto failedStep = RunStep::Codex;
+  if (activeRunKind_ == JobKind::Promote) failedStep = RunStep::Promote;
+  if (activeRunKind_ == JobKind::PackValidate) failedStep = RunStep::Validate;
+  updateStep(failedStep, StepState::Failed, message);
+  phaseLabel_->setText("Asset Studio job failed");
+  summaryLabel_->setText(message);
+}
+
+void AssetStudioWidget::updateElapsedStatus() {
+  if (!runStartedAt_.isValid() || activeRunLabel_.isEmpty() || !process_) return;
+  const auto seconds = runStartedAt_.secsTo(QDateTime::currentDateTime());
+  phaseLabel_->setText(QString("%1... %2s elapsed").arg(activeRunLabel_).arg(seconds));
+}
+
+void AssetStudioWidget::finishRunSummary(const QList<RunFile>& files, const QStringList& missing) {
+  if (!missing.isEmpty()) {
+    const auto message = QString("Missing expected files in %1: %2").arg(activeRunPath_, missing.join(", "));
+    updateStep(RunStep::Verify, StepState::Failed, message);
+    phaseLabel_->setText("Output verification failed");
+    summaryLabel_->setText(message);
+    appendLog(QString("%1\n").arg(message));
+    emit statusMessage("Asset Studio: missing generated files");
+    return;
+  }
+
+  updateStep(RunStep::Verify, StepState::Done, QString("%1 files verified").arg(files.size()));
+  updateStep(RunStep::Review, StepState::Done, "Run summary ready");
+  const auto manifestOk = files.end() != std::find_if(files.begin(), files.end(), [](const RunFile& file) { return file.name == "manifest.json" || file.name == "candidate.metadata.json"; });
+  summaryLabel_->setText(QString("Verified %1 files in %2. %3").arg(files.size()).arg(activeRunPath_, manifestOk ? "Manifest found." : "No manifest metadata found."));
+  phaseLabel_->setText("Generated assets ready for review");
+  emit statusMessage("Asset Studio: generated assets ready");
+}
+
+QStringList AssetStudioWidget::expectedFilesFor(JobKind kind) const {
+  if (kind == JobKind::Concepts) return {"concept-sheet.png", "concept-01.png", "concept-02.png", "concept-03.png", "concept-04.png", "manifest.json"};
+  if (kind == JobKind::Refine) return {"refined.png", "runtime-candidate.png", "candidate.metadata.json", "qa.md"};
+  return {};
+}
+
+QString AssetStudioWidget::stepName(RunStep step) const {
+  switch (step) {
+    case RunStep::Prepare:
+      return "Prepare run";
+    case RunStep::Codex:
+      return "Start Codex";
+    case RunStep::Generate:
+      return "Generate images";
+    case RunStep::Verify:
+      return "Verify files";
+    case RunStep::Thumbnails:
+      return "Load thumbnails";
+    case RunStep::Review:
+      return "Review results";
+    case RunStep::Refine:
+      return "Refine";
+    case RunStep::Promote:
+      return "Promote";
+    case RunStep::Validate:
+      return "Pack/Validate";
+    case RunStep::Count:
+      return {};
+  }
+  return {};
+}
+
+QString AssetStudioWidget::statePrefix(StepState state) const {
+  switch (state) {
+    case StepState::Waiting:
+      return "[ ]";
+    case StepState::Running:
+      return "[>]";
+    case StepState::Done:
+      return "[ok]";
+    case StepState::Failed:
+      return "[x]";
+    case StepState::Canceled:
+      return "[-]";
+  }
+  return "[ ]";
+}
+
+bool AssetStudioWidget::isImagePath(const QString& path) const {
+  const auto suffix = QFileInfo(path).suffix().toLower();
+  return suffix == "png" || suffix == "jpg" || suffix == "jpeg" || suffix == "webp";
 }
 
 QString AssetStudioWidget::assetRequestText() const {
@@ -309,10 +513,12 @@ void AssetStudioWidget::refreshRunImages() {
   if (currentRunPath_.isEmpty()) return;
   stopProcess(process_);
   listBuffer_.clear();
-  const auto command = QString("find %1 -type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \\) -printf '%p\\n' 2>/dev/null | sort").arg(shellQuote(currentRunPath_));
+  updateStep(RunStep::Verify, StepState::Running, "Checking generated files on disk");
+  const auto runPath = activeRunPath_.isEmpty() ? currentRunPath_ : activeRunPath_;
+  const auto command = QString("find %1 -maxdepth 1 -type f -printf '%f\\t%p\\t%s\\n' 2>/dev/null | sort").arg(shellQuote(runPath));
   process_ = startCommand(command);
   jobKind_ = JobKind::List;
-  setBusy(true, "Loading generated images");
+  setBusy(true, "Verifying generated files");
   connect(process_, &QProcess::readyReadStandardOutput, this, [this]() { listBuffer_.append(process_->readAllStandardOutput()); });
   connect(process_, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this, [this](int, QProcess::ExitStatus) {
     const auto lines = QString::fromUtf8(listBuffer_).split('\n', Qt::SkipEmptyParts);
@@ -325,26 +531,52 @@ void AssetStudioWidget::refreshRunImages() {
       handleMissingRunImages();
       return;
     }
+    QList<RunFile> files;
+    QStringList presentNames;
     for (const auto& line : lines) {
-      auto* item = new QListWidgetItem(imageName(line));
-      item->setData(Qt::UserRole, line);
+      const auto fields = line.split('\t');
+      if (fields.size() < 3) continue;
+      RunFile file{fields[0], fields[1], parseSize(fields[2])};
+      files << file;
+      presentNames << file.name;
+      if (!isImagePath(file.path)) continue;
+      auto* item = new QListWidgetItem(file.name);
+      item->setData(Qt::UserRole, file.path);
       item->setTextAlignment(Qt::AlignHCenter);
       item->setIcon(editorIcon(EditorIcon::Image, QColor("#475467"), QSize(kThumbSize, kThumbSize)));
       imageList_->addItem(item);
-      images_.insert(line, {line, item});
-      thumbnailQueue_ << line;
+      images_.insert(file.path, {file.path, item});
+      thumbnailQueue_ << file.path;
     }
+    QStringList missing;
+    for (const auto& expected : expectedFilesFor(activeRunKind_)) {
+      if (!presentNames.contains(expected)) missing << expected;
+    }
+    finishRunSummary(files, missing);
+    if (!missing.isEmpty()) {
+      setBusy(false);
+      return;
+    }
+    updateStep(RunStep::Thumbnails, StepState::Running, QString("Loading %1 previews").arg(thumbnailQueue_.size()));
     setBusy(false);
     loadNextThumbnail();
   });
 }
 
 void AssetStudioWidget::loadNextThumbnail() {
-  if (thumbnailQueue_.isEmpty()) return;
+  if (thumbnailQueue_.isEmpty()) {
+    updateStep(RunStep::Thumbnails, StepState::Done, QString("%1 previews loaded").arg(images_.size()));
+    const auto sheetItems = imageList_->findItems("concept-sheet.png", Qt::MatchExactly);
+    if (!sheetItems.isEmpty()) imageList_->setCurrentItem(sheetItems.first());
+    return;
+  }
   stopProcess(thumbnailProcess_);
   thumbnailPath_ = thumbnailQueue_.takeFirst();
   if (useLocalExecution()) {
-    loadLocalThumbnail(thumbnailPath_);
+    if (!loadLocalThumbnail(thumbnailPath_)) {
+      const auto it = images_.find(thumbnailPath_);
+      if (it != images_.end() && it->item) it->item->setText(QString("%1\nPreview failed").arg(imageName(thumbnailPath_)));
+    }
     loadNextThumbnail();
     return;
   }
@@ -359,7 +591,13 @@ void AssetStudioWidget::loadNextThumbnail() {
         if (it != images_.end() && it->item) {
           it->item->setIcon(QPixmap::fromImage(image).scaled(kThumbSize, kThumbSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         }
+      } else {
+        const auto it = images_.find(thumbnailPath_);
+        if (it != images_.end() && it->item) it->item->setText(QString("%1\nPreview failed").arg(imageName(thumbnailPath_)));
       }
+    } else {
+      const auto it = images_.find(thumbnailPath_);
+      if (it != images_.end() && it->item) it->item->setText(QString("%1\nPreview failed").arg(imageName(thumbnailPath_)));
     }
     thumbnailBuffer_.clear();
     stopProcess(thumbnailProcess_);
@@ -367,13 +605,14 @@ void AssetStudioWidget::loadNextThumbnail() {
   });
 }
 
-void AssetStudioWidget::loadLocalThumbnail(const QString& path) {
+bool AssetStudioWidget::loadLocalThumbnail(const QString& path) {
   QImage image;
-  if (!image.load(path)) return;
+  if (!image.load(path)) return false;
   const auto it = images_.find(path);
   if (it != images_.end() && it->item) {
     it->item->setIcon(QPixmap::fromImage(image).scaled(kThumbSize, kThumbSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
   }
+  return true;
 }
 
 void AssetStudioWidget::handleMissingRunImages() {
@@ -381,6 +620,8 @@ void AssetStudioWidget::handleMissingRunImages() {
   appendLog(QString("%1\n").arg(message));
   phaseLabel_->setText("No project images written");
   selectedLabel_->setText(message);
+  summaryLabel_->setText(message);
+  updateStep(RunStep::Verify, StepState::Failed, "No images found in run folder");
   emit statusMessage("Asset Studio: no project images written");
 }
 

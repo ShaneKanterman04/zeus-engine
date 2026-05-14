@@ -6,7 +6,9 @@
 #include <QByteArray>
 #include <QHash>
 #include <QProcess>
+#include <QDateTime>
 #include <QStringList>
+#include <QVector>
 #include <QWidget>
 
 class QComboBox;
@@ -43,10 +45,18 @@ class AssetStudioWidget : public QWidget {
 
  private:
   enum class JobKind { None, Concepts, Refine, Promote, PackValidate, List, Thumbnail };
+  enum class StepState { Waiting, Running, Done, Failed, Canceled };
+  enum class RunStep { Prepare, Codex, Generate, Verify, Thumbnails, Review, Refine, Promote, Validate, Count };
 
   struct RemoteImage {
     QString path;
     QListWidgetItem* item = nullptr;
+  };
+
+  struct RunFile {
+    QString name;
+    QString path;
+    qint64 size = 0;
   };
 
   void buildUi();
@@ -55,11 +65,22 @@ class AssetStudioWidget : public QWidget {
   void startRemoteCommand(JobKind kind, const QString& label, const QString& command);
   void finishJob(int code, QProcess::ExitStatus status);
   void appendLog(const QString& text);
+  void appendProcessOutput(const QString& text);
   void setBusy(bool busy, const QString& label = QString());
+  void beginRun(JobKind kind, const QString& label);
+  void resetProgress();
+  void updateStep(RunStep step, StepState state, const QString& detail = QString());
+  void failRun(const QString& message);
+  void updateElapsedStatus();
+  void finishRunSummary(const QList<RunFile>& files, const QStringList& missing);
+  QStringList expectedFilesFor(JobKind kind) const;
+  QString stepName(RunStep step) const;
+  QString statePrefix(StepState state) const;
+  bool isImagePath(const QString& path) const;
   QString assetRequestText() const;
   void refreshRunImages();
   void loadNextThumbnail();
-  void loadLocalThumbnail(const QString& path);
+  bool loadLocalThumbnail(const QString& path);
   void handleMissingRunImages();
   void clearImages();
   QString slug() const;
@@ -74,10 +95,16 @@ class AssetStudioWidget : public QWidget {
   SshProfile sshProfile_;
   QString remoteRoot_;
   QString currentRunPath_;
+  QString activeRunPath_;
   QString refinedPath_;
   QProcess* process_ = nullptr;
   QProcess* thumbnailProcess_ = nullptr;
+  QTimer* elapsedTimer_ = nullptr;
   JobKind jobKind_ = JobKind::None;
+  JobKind activeRunKind_ = JobKind::None;
+  bool cancelRequested_ = false;
+  QDateTime runStartedAt_;
+  QString activeRunLabel_;
   QByteArray listBuffer_;
   QByteArray thumbnailBuffer_;
   QString thumbnailPath_;
@@ -96,6 +123,9 @@ class AssetStudioWidget : public QWidget {
   QPushButton* cancelButton_ = nullptr;
   QLabel* phaseLabel_ = nullptr;
   QLabel* selectedLabel_ = nullptr;
+  QLabel* summaryLabel_ = nullptr;
+  QListWidget* progressList_ = nullptr;
   QListWidget* imageList_ = nullptr;
   QPlainTextEdit* log_ = nullptr;
+  QVector<QListWidgetItem*> progressItems_;
 };
