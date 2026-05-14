@@ -50,3 +50,10 @@ export {
   spriteHash,
 } from "./sprites/PixelDetail.js";
 export type { PixelBounds } from "./sprites/PixelDetail.js";
+export { generateFoliagePlacements } from "./foliage/FoliagePlacement.js";
+export type {
+  ZeusFoliagePlacementInstance,
+  ZeusFoliagePlacementOptions,
+  ZeusFoliagePlacementRoute,
+  ZeusFoliagePlacementZone,
+} from "./foliage/FoliagePlacement.js";

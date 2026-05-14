@@ -25,6 +25,15 @@ export type ZeusPixiSpriteOptions = {
   label?: string;
 };
 
+export type ZeusPixiCulledSpriteInstance = {
+  id: string;
+  frame: AtlasFrame;
+  position: Vec2;
+  radius?: number;
+  ySort?: number;
+  options?: ZeusPixiSpriteOptions;
+};
+
 export type ZeusPixiLayerStats = Record<ZeusPixiLayerName, number> & {
   total: number;
 };
@@ -172,6 +181,21 @@ export class ZeusPixiRenderer {
     return this.addSprite(name, frame, position, optionsOrTint);
   }
 
+  addCulledSprites(
+    name: ZeusPixiLayerName,
+    instances: readonly ZeusPixiCulledSpriteInstance[],
+    viewport: { x: number; y: number; width: number; height: number },
+    margin = 160,
+  ) {
+    const visible = instances
+      .filter((instance) => spriteInViewport(instance, viewport, margin))
+      .sort((a, b) => (a.ySort ?? a.position.y) - (b.ySort ?? b.position.y));
+    for (const instance of visible) {
+      this.addSprite(name, instance.frame, instance.position, { ...instance.options, label: instance.id });
+    }
+    return visible.length;
+  }
+
   async loadAtlasTextures(assets: AssetManifestRegistry, atlasIds: string[], basePath = "") {
     for (const atlasId of atlasIds) {
       const source = assets.resolve(atlasId, basePath);
@@ -214,6 +238,40 @@ export class ZeusPixiRenderer {
     this.qualityMode = mode;
     this.app.ticker.maxFPS = mode === "low" ? 30 : 0;
   }
+}
+
+export class ZeusPixiCulledSpriteLayer {
+  private visibleCount = 0;
+
+  constructor(
+    private readonly renderer: ZeusPixiRenderer,
+    private readonly layer: ZeusPixiLayerName,
+    private readonly margin = 160,
+  ) {}
+
+  render(instances: readonly ZeusPixiCulledSpriteInstance[], viewport: { x: number; y: number; width: number; height: number }) {
+    this.renderer.clearLayer(this.layer);
+    this.visibleCount = this.renderer.addCulledSprites(this.layer, instances, viewport, this.margin);
+    return this.visibleCount;
+  }
+
+  stats() {
+    return { visible: this.visibleCount };
+  }
+}
+
+function spriteInViewport(
+  instance: ZeusPixiCulledSpriteInstance,
+  viewport: { x: number; y: number; width: number; height: number },
+  margin: number,
+) {
+  const radius = instance.radius ?? Math.max(instance.frame.width, instance.frame.height) / 2;
+  return (
+    instance.position.x + radius >= viewport.x - margin &&
+    instance.position.x - radius <= viewport.x + viewport.width + margin &&
+    instance.position.y + radius >= viewport.y - margin &&
+    instance.position.y - radius <= viewport.y + viewport.height + margin
+  );
 }
 
 export class ZeusPixiRuntime {
