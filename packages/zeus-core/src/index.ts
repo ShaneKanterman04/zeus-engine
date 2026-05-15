@@ -26,6 +26,11 @@ export {
   zeusWorldToChunkCoord,
 } from "./chunks/ChunkGrid.js";
 export { ZeusChunkStreamer } from "./chunks/ChunkStreamer.js";
+export {
+  zeusPointInRect,
+  zeusRectContainsRect,
+  zeusRectIntersectsRect,
+} from "./worldLayers.js";
 export type { FixedStepLoopOptions } from "./simulation/FixedStepLoop.js";
 export type {
   ZeusFrameMetricsSample,
@@ -46,3 +51,17 @@ export type {
   ZeusChunkRect,
 } from "./chunks/ChunkGrid.js";
 export type { ZeusChunkProvider, ZeusChunkStreamerOptions, ZeusChunkStreamerState } from "./chunks/ChunkStreamer.js";
+export type {
+  ZeusRect,
+  ZeusWorldChunkManifest,
+  ZeusWorldChunkManifestEntry,
+  ZeusWorldExclusion,
+  ZeusWorldFoliageInstance,
+  ZeusWorldFoliageSpecies,
+  ZeusWorldFoliageZone,
+  ZeusWorldFoliageZoneSpecies,
+  ZeusWorldLayerManifest,
+  ZeusWorldLayerRef,
+  ZeusWorldRegion,
+  ZeusWorldRoute,
+} from "./worldLayers.js";
