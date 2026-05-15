@@ -31,6 +31,7 @@ export {
   zeusRectContainsRect,
   zeusRectIntersectsRect,
 } from "./worldLayers.js";
+export { ZeusWorldLayerIndex } from "./worldLayerIndex.js";
 export type { FixedStepLoopOptions } from "./simulation/FixedStepLoop.js";
 export type {
   ZeusFrameMetricsSample,
@@ -65,3 +66,4 @@ export type {
   ZeusWorldRegion,
   ZeusWorldRoute,
 } from "./worldLayers.js";
+export type { ZeusWorldLayerIndexOptions } from "./worldLayerIndex.js";
