@@ -50,13 +50,16 @@ export {
   spriteHash,
 } from "./sprites/PixelDetail.js";
 export type { PixelBounds } from "./sprites/PixelDetail.js";
-export { generateFoliagePlacements } from "./foliage/FoliagePlacement.js";
+export { generateFoliagePlacementResult, generateFoliagePlacements } from "./foliage/FoliagePlacement.js";
 export { validateChunkMap } from "./world/ChunkMapValidation.js";
 export { countRouteClearanceViolations, validateWorldLayers } from "./world/WorldLayerValidation.js";
 export type {
   ZeusFoliagePlacementInstance,
   ZeusFoliagePlacementOptions,
+  ZeusFoliagePlacementReport,
+  ZeusFoliagePlacementResult,
   ZeusFoliagePlacementRoute,
+  ZeusFoliagePlacementZoneReport,
   ZeusFoliagePlacementZone,
 } from "./foliage/FoliagePlacement.js";
 export type { ZeusChunkMapValidationChunk, ZeusChunkMapValidationOptions } from "./world/ChunkMapValidation.js";
