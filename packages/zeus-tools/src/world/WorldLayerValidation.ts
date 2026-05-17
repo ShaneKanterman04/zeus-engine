@@ -1,10 +1,11 @@
-import { distanceToPolyline, zeusPointInRect, zeusRectContainsRect, zeusRectIntersectsRect } from "@zeus/core";
+import { distanceToPolyline, zeusPointInRect, zeusRectContainsRect, zeusRectIntersectsRect, zeusRegionInfluencesAtPoint } from "@zeus/core";
 import type {
   ZeusWorldChunkManifestEntry,
   ZeusWorldFoliageInstance,
   ZeusWorldFoliageSpecies,
   ZeusWorldFoliageZone,
   ZeusWorldLayerManifest,
+  ZeusWorldRegionBlendOptions,
 } from "@zeus/core";
 
 export type ZeusWorldLayerValidationOptions = ZeusWorldLayerManifest & {
@@ -12,6 +13,9 @@ export type ZeusWorldLayerValidationOptions = ZeusWorldLayerManifest & {
   foliageInstances?: readonly ZeusWorldFoliageInstance[];
   minFoliageInstancesPerChunk?: number;
   maxSolidFoliagePerChunk?: number;
+  requireBlendedRegionCoverage?: boolean;
+  regionCoverageSampleSize?: number;
+  regionBlendOptions?: ZeusWorldRegionBlendOptions;
 };
 
 export type ZeusWorldLayerValidationResult = {
@@ -51,10 +55,29 @@ export function validateWorldLayers(options: ZeusWorldLayerValidationOptions): Z
   }
   for (const zone of zones) validateZone(zone, worldBounds, speciesById, errors, warnings);
   for (const chunk of chunks) validateChunk(chunk, regions, zones, errors, warnings);
+  validateBlendedRegionCoverage(options, errors);
   validateFoliageInstances(options, speciesById, zoneIds, errors);
   validateChunkDensities(options, speciesById, errors);
 
   return { ok: errors.length === 0, errors, warnings };
+}
+
+function validateBlendedRegionCoverage(options: ZeusWorldLayerValidationOptions, errors: string[]) {
+  if (!options.requireBlendedRegionCoverage) return;
+  const regions = options.regions ?? [];
+  if (regions.length === 0) {
+    errors.push("World has no regions for blended coverage");
+    return;
+  }
+  const sampleSize = options.regionCoverageSampleSize ?? 128;
+  for (let y = sampleSize / 2; y < options.bounds.height; y += sampleSize) {
+    for (let x = sampleSize / 2; x < options.bounds.width; x += sampleSize) {
+      if (zeusRegionInfluencesAtPoint({ x, y }, regions, options.regionBlendOptions).length === 0) {
+        errors.push(`World has no blended region coverage near ${Math.round(x)},${Math.round(y)}`);
+        return;
+      }
+    }
+  }
 }
 
 function validateZone(

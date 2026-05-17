@@ -9,6 +9,15 @@ export type PixiWaterway = {
   seed?: number;
 };
 
+export type PixiWaterBody = {
+  id?: string;
+  x: number;
+  y: number;
+  radiusX: number;
+  radiusY: number;
+  seed?: number;
+};
+
 export type PixiCreekStyle = {
   bankColor?: string;
   edgeColor?: string;
@@ -19,6 +28,8 @@ export type PixiCreekStyle = {
   bankWidth?: number;
   detail?: "standard" | "low";
 };
+
+export type PixiLakeStyle = PixiCreekStyle;
 
 export function createPixiCreekGraphics(waterway: PixiWaterway, style: PixiCreekStyle = {}) {
   const creek = new Graphics();
@@ -39,6 +50,35 @@ export function createPixiCreekGraphics(waterway: PixiWaterway, style: PixiCreek
   }
 
   return creek;
+}
+
+export function createPixiLakeGraphics(waterBody: PixiWaterBody, style: PixiLakeStyle = {}) {
+  const lake = new Graphics();
+  if (!isFiniteWaterBody(waterBody)) return lake;
+
+  const bankWidth = style.bankWidth ?? Math.max(12, Math.min(waterBody.radiusX, waterBody.radiusY) * 0.14);
+  const edgeWidth = Math.max(6, bankWidth * 0.38);
+
+  lake.ellipse(waterBody.x, waterBody.y, waterBody.radiusX + bankWidth, waterBody.radiusY + bankWidth).fill({
+    color: style.bankColor ?? "#596f63",
+    alpha: 0.72,
+  });
+  lake.ellipse(waterBody.x, waterBody.y, waterBody.radiusX + edgeWidth, waterBody.radiusY + edgeWidth).fill({
+    color: style.edgeColor ?? "#c8d8cc",
+    alpha: 0.62,
+  });
+  lake.ellipse(waterBody.x, waterBody.y, waterBody.radiusX, waterBody.radiusY).fill({
+    color: style.waterColor ?? "#587f8d",
+    alpha: 0.92,
+  });
+  lake.ellipse(waterBody.x, waterBody.y, waterBody.radiusX * 0.54, waterBody.radiusY * 0.54).fill({
+    color: style.deepColor ?? "#315866",
+    alpha: 0.3,
+  });
+
+  if (style.detail !== "low") drawLakeDetails(lake, waterBody, style);
+
+  return lake;
 }
 
 function drawRoundedStroke(graphics: Graphics, points: readonly Vec2[], width: number, color: string, alpha: number) {
@@ -100,6 +140,38 @@ function drawCreekDetails(
   }
 }
 
+function drawLakeDetails(graphics: Graphics, waterBody: PixiWaterBody, style: PixiLakeStyle) {
+  const random = seededRandom(waterBody.seed ?? hashString(waterBody.id ?? "water-body"));
+  const highlightCount = Math.max(5, Math.floor((waterBody.radiusX + waterBody.radiusY) / 70));
+  const rockCount = Math.max(4, Math.floor((waterBody.radiusX + waterBody.radiusY) / 90));
+
+  for (let index = 0; index < highlightCount; index += 1) {
+    const angle = random() * Math.PI * 2;
+    const distance = 0.18 + random() * 0.62;
+    const center = {
+      x: waterBody.x + Math.cos(angle) * waterBody.radiusX * distance,
+      y: waterBody.y + Math.sin(angle) * waterBody.radiusY * distance,
+    };
+    const length = 16 + random() * 34;
+    graphics
+      .moveTo(center.x - length * 0.5, center.y)
+      .lineTo(center.x + length * 0.5, center.y + (random() - 0.5) * 6)
+      .stroke({ color: style.highlightColor ?? "#d9ecee", alpha: 0.22, width: 2 });
+  }
+
+  for (let index = 0; index < rockCount; index += 1) {
+    const angle = random() * Math.PI * 2;
+    const rock = {
+      x: waterBody.x + Math.cos(angle) * waterBody.radiusX * (1.02 + random() * 0.14),
+      y: waterBody.y + Math.sin(angle) * waterBody.radiusY * (1.02 + random() * 0.14),
+    };
+    graphics.ellipse(rock.x, rock.y, 4 + random() * 7, 2 + random() * 4).fill({
+      color: style.rockColor ?? "#4f5c4f",
+      alpha: 0.44,
+    });
+  }
+}
+
 function nearestTangent(points: readonly Vec2[], point: Vec2) {
   let bestStart = points[0];
   let bestEnd = points[1];
@@ -150,4 +222,15 @@ function hashString(value: string) {
 
 function isFinitePoint(point: Vec2) {
   return Number.isFinite(point.x) && Number.isFinite(point.y);
+}
+
+function isFiniteWaterBody(waterBody: PixiWaterBody) {
+  return (
+    Number.isFinite(waterBody.x) &&
+    Number.isFinite(waterBody.y) &&
+    Number.isFinite(waterBody.radiusX) &&
+    Number.isFinite(waterBody.radiusY) &&
+    waterBody.radiusX > 0 &&
+    waterBody.radiusY > 0
+  );
 }

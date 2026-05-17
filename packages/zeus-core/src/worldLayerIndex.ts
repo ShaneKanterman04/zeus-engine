@@ -1,7 +1,8 @@
 import { ZeusSpatialHashGrid } from "./spatial/SpatialHashGrid.js";
-import { zeusPointInRect, zeusRectIntersectsRect } from "./worldLayers.js";
+import { zeusBuildRegionBlendCells, zeusPointInRect, zeusRectIntersectsRect, zeusRegionInfluencesAtPoint } from "./worldLayers.js";
 import type {
   ZeusRect,
+  ZeusWorldRegionBlendOptions,
   ZeusWorldChunkManifestEntry,
   ZeusWorldFoliageInstance,
   ZeusWorldFoliageSpecies,
@@ -68,6 +69,18 @@ export class ZeusWorldLayerIndex {
 
   regionsAt(point: { x: number; y: number }) {
     return [...this.regionsById.values()].filter((region) => zeusPointInRect(point, region.bounds));
+  }
+
+  regionInfluencesAt(point: { x: number; y: number }, options?: ZeusWorldRegionBlendOptions) {
+    return zeusRegionInfluencesAtPoint(point, [...this.regionsById.values()], options);
+  }
+
+  primaryRegionAt(point: { x: number; y: number }, options?: ZeusWorldRegionBlendOptions) {
+    return this.regionInfluencesAt(point, options)[0]?.region;
+  }
+
+  regionBlendCells(options: { bounds: { width: number; height: number }; cellSize: number; blendOptions?: ZeusWorldRegionBlendOptions }) {
+    return zeusBuildRegionBlendCells({ ...options, regions: [...this.regionsById.values()] });
   }
 
   regionsIntersecting(rect: ZeusRect) {

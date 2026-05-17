@@ -137,6 +137,9 @@ function violatesExclusions(point: Vec2, exclusions: readonly ZeusWorldExclusion
         point.y <= exclusion.bounds.y + exclusion.bounds.height
       );
     }
+    if (exclusion.kind === "ellipse") {
+      return ((point.x - exclusion.x) / exclusion.radiusX) ** 2 + ((point.y - exclusion.y) / exclusion.radiusY) ** 2 < 1;
+    }
     return distanceToPolyline(point, exclusion.points) < exclusion.radius;
   });
 }
