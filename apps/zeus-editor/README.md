@@ -25,7 +25,7 @@ From the `zeus-engine` repo root:
 ```bash
 npm run editor:configure
 npm run editor:build
-npm run editor:run -- --remote shane@10.0.0.194 --path /home/shane/Projects/last-hearth-game
+npm run editor:run -- --remote user@example-host --path /path/to/game-project
 ```
 
 The editor creates a default profile at:
@@ -34,7 +34,7 @@ The editor creates a default profile at:
 ~/.config/Zeus/Editor/profiles.json
 ```
 
-The default profile targets `shane@10.0.0.194` and `/home/shane/Projects/last-hearth-game`.
+The default profile is created from the command-line values you pass to `editor:run`. Use a remote SSH target and project path that are valid for your environment.
 
 ## Package
 
@@ -72,5 +72,5 @@ From the command line:
 
 ```bash
 npm run editor:kill-server
-npm run editor:kill-server -- --remote shane@10.0.0.194 --port 5173
+npm run editor:kill-server -- --remote user@example-host --port 5173
 ```
