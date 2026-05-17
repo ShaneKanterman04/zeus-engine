@@ -32,7 +32,11 @@ export class ZeusWebSocketRoomServer<TIntent, TSnapshot> {
       socket.on("data", (data) => this.receive(client, data));
       socket.on("close", () => this.clients.delete(client));
       socket.on("error", () => this.clients.delete(client));
-      this.send(client, { type: "join", roomId, clientId, snapshot: this.room.room.join(clientId) });
+      try {
+        this.send(client, { type: "join", roomId, clientId, snapshot: this.room.room.join(clientId) });
+      } catch (error) {
+        this.closeWithError(client, error);
+      }
     });
   }
 
@@ -76,7 +80,11 @@ export class ZeusWebSocketRoomServer<TIntent, TSnapshot> {
       return;
     }
     if (message.type === "intent") {
-      this.room.room.receiveIntent(client.clientId, message.intent);
+      try {
+        this.room.room.receiveIntent(client.clientId, message.intent);
+      } catch (error) {
+        this.closeWithError(client, error);
+      }
     }
   }
 
@@ -86,6 +94,12 @@ export class ZeusWebSocketRoomServer<TIntent, TSnapshot> {
 
   private send(client: SocketClient, message: ZeusSocketMessage<TIntent, TSnapshot>) {
     client.socket.write(encodeTextFrame(stringifyZeusSocketMessage(message)));
+  }
+
+  private closeWithError(client: SocketClient, error: unknown) {
+    const message = error instanceof Error ? error.message : "WebSocket room error";
+    this.clients.delete(client);
+    client.socket.write(encodeTextFrame(stringifyZeusSocketMessage({ type: "error", message })), () => client.socket.end());
   }
 }
 
