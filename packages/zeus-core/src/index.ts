@@ -27,7 +27,9 @@ export {
 } from "./chunks/ChunkGrid.js";
 export { ZeusChunkStreamer } from "./chunks/ChunkStreamer.js";
 export {
+  zeusBuildRegionBlendCells,
   zeusPointInRect,
+  zeusRegionInfluencesAtPoint,
   zeusRectContainsRect,
   zeusRectIntersectsRect,
 } from "./worldLayers.js";
@@ -54,6 +56,8 @@ export type {
 export type { ZeusChunkProvider, ZeusChunkStreamerOptions, ZeusChunkStreamerState } from "./chunks/ChunkStreamer.js";
 export type {
   ZeusRect,
+  ZeusWorldRegionBlendCell,
+  ZeusWorldRegionBlendOptions,
   ZeusWorldChunkManifest,
   ZeusWorldChunkManifestEntry,
   ZeusWorldExclusion,
@@ -64,6 +68,7 @@ export type {
   ZeusWorldLayerManifest,
   ZeusWorldLayerRef,
   ZeusWorldRegion,
+  ZeusWorldRegionInfluence,
   ZeusWorldRoute,
 } from "./worldLayers.js";
 export type { ZeusWorldLayerIndexOptions } from "./worldLayerIndex.js";
