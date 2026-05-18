@@ -4,6 +4,7 @@ import { ComponentStore } from "../packages/zeus-core/src/ecs/ComponentStore";
 import { FixedStepLoop } from "../packages/zeus-core/src/simulation/FixedStepLoop";
 import { zeusRaycastCircles } from "../packages/zeus-core/src/projectiles";
 import { InputContext } from "../packages/zeus-input/src/InputContext";
+import { applyInputSnapshot, copyInputState, createInputSnapshot } from "../packages/zeus-input/src/InputSnapshot";
 
 describe("FixedStepLoop", () => {
   it("accumulates partial frames and advances fixed-size steps", () => {
@@ -77,6 +78,43 @@ describe("InputContext", () => {
 
     expect(input.state.actions.has("fire")).toBe(false);
     expect(input.state.actions.has("interact")).toBe(true);
+  });
+
+  it("creates serializable snapshots and can consume one-shot pressed input", () => {
+    const input = new InputContext({ KeyF: "fire" });
+    input.keyDown("KeyF");
+    input.pointerMove({ x: 12, y: 24 });
+
+    const snapshot = createInputSnapshot(input.state, { consumePressed: true });
+
+    expect(snapshot).toEqual({ actions: ["fire"], pressed: ["fire"], pointer: { x: 12, y: 24 } });
+    expect(input.state.pressed.size).toBe(0);
+  });
+
+  it("applies input snapshots and derives pressed actions for legacy intents", () => {
+    const input = new InputContext();
+    input.state.actions.add("left");
+
+    applyInputSnapshot({ actions: ["left", "fire"], pressed: [], pointer: { x: 3, y: 4 } }, input.state, { derivePressed: true });
+
+    expect([...input.state.actions]).toEqual(["left", "fire"]);
+    expect([...input.state.pressed]).toEqual(["fire"]);
+    expect(input.state.pointer).toEqual({ x: 3, y: 4 });
+  });
+
+  it("copies input state without sharing pointer references", () => {
+    const source = new InputContext();
+    const target = new InputContext();
+    source.state.actions.add("up");
+    source.state.pressed.add("interact");
+    source.pointerMove({ x: 7, y: 9 });
+
+    copyInputState(source.state, target.state);
+    source.pointerMove({ x: 1, y: 2 });
+
+    expect([...target.state.actions]).toEqual(["up"]);
+    expect([...target.state.pressed]).toEqual(["interact"]);
+    expect(target.state.pointer).toEqual({ x: 7, y: 9 });
   });
 });
 
