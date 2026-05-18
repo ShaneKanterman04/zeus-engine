@@ -336,6 +336,33 @@ describe("world layer validation", () => {
     expect(result.warnings).toEqual(expect.arrayContaining(["Chunk 'foliage-ref-mismatch' foliage zone refs do not match geometry"]));
   });
 
+  it("reports direct region coverage gaps without using nearest-region fallback", () => {
+    const result = validateWorldLayers({
+      mapId: "gap-map",
+      bounds: { width: 320, height: 128 },
+      regions: [
+        {
+          id: "west",
+          role: "safe",
+          bounds: { x: 0, y: 0, width: 64, height: 128 },
+        },
+        {
+          id: "east",
+          role: "resource",
+          bounds: { x: 256, y: 0, width: 64, height: 128 },
+        },
+      ],
+      requireDirectRegionCoverage: true,
+      requireBlendedRegionCoverage: true,
+      regionCoverageSampleSize: 64,
+      regionBlendOptions: { blendRadius: 32 },
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toEqual(expect.arrayContaining(["World has no direct region coverage near 96,32"]));
+    expect(result.errors).not.toContain("World has no blended region coverage near 96,32");
+  });
+
   it("counts route clearance violations only for collidable foliage", () => {
     const violations = countRouteClearanceViolations({
       routes,
