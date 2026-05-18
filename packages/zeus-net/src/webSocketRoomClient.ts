@@ -37,10 +37,10 @@ export class ZeusWebSocketRoomClient<TIntent, TSnapshot> {
         const message = parseZeusSocketMessage<TIntent, TSnapshot>(String(event.data));
         if (message.type === "join") {
           this.reconnectToken = message.reconnectToken;
-          this.latest = structuredClone(message.snapshot);
+          this.latest = message.snapshot;
           resolve({ roomId: message.roomId, clientId: message.clientId, reconnectToken: message.reconnectToken, snapshot: this.snapshot() });
         } else if (message.type === "snapshot") {
-          this.latest = structuredClone(message.snapshot);
+          this.latest = message.snapshot;
         } else if (message.type === "error") {
           reject(new Error(message.message));
         }
@@ -61,6 +61,11 @@ export class ZeusWebSocketRoomClient<TIntent, TSnapshot> {
   snapshot() {
     if (!this.latest) throw new Error("No WebSocket room snapshot has been received");
     return structuredClone(this.latest);
+  }
+
+  borrowedSnapshot() {
+    if (!this.latest) throw new Error("No WebSocket room snapshot has been received");
+    return this.latest;
   }
 
   close() {

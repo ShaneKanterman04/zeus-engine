@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ZeusFrameMetricsSampler, ZeusSpatialHashGrid } from "@zeus/core";
+import { ComponentStore, ZeusFrameMetricsSampler, ZeusSpatialHashGrid } from "@zeus/core";
 
 type BenchOutput = {
   name: string;
@@ -51,6 +51,26 @@ describe("Zeus performance benchmarks", () => {
         result += grid.queryRect({ x, y, width: 180, height: 140 }).length;
         result += grid.queryCircle({ x: x + 90, y: y + 70 }, 96).length;
         if (grid.nearest({ x: x + 48, y: y + 32 }, 128)) result += 1;
+      }
+      return result;
+    });
+
+    expect(output.result).toBeGreaterThan(0);
+    expect(output.elapsedMs).toBeLessThan(5_000);
+  });
+
+  it("tracks borrowed component store throughput", () => {
+    const store = new ComponentStore<{ x: number; y: number; radius: number; enabled: boolean }>();
+    for (let index = 0; index < 10_000; index += 1) {
+      store.setBorrowed(`component-${index}`, { x: index % 100, y: Math.floor(index / 100), radius: 24, enabled: index % 3 !== 0 });
+    }
+
+    const output = measure("component-store-borrowed-read", 2_000, (iterations) => {
+      let result = 0;
+      for (let index = 0; index < iterations; index += 1) {
+        for (const component of store.borrowedEntries().values()) {
+          if (component.enabled) result += component.x + component.y + component.radius;
+        }
       }
       return result;
     });

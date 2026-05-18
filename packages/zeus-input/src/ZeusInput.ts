@@ -5,6 +5,15 @@ export class ZeusInput {
   readonly state = this.context.state;
 
   attach(target: HTMLElement) {
+    let cachedRect = target.getBoundingClientRect();
+    let cachedRectAt = 0;
+    const refreshRect = () => {
+      cachedRect = target.getBoundingClientRect();
+      cachedRectAt = performance.now();
+    };
+    window.addEventListener("resize", refreshRect);
+    window.addEventListener("scroll", refreshRect, true);
+    target.addEventListener("pointerenter", refreshRect);
     window.addEventListener("keydown", (event) => {
       if (this.context.keyDown(event.code)) {
         event.preventDefault();
@@ -14,7 +23,8 @@ export class ZeusInput {
       this.context.keyUp(event.code);
     });
     target.addEventListener("pointermove", (event) => {
-      const rect = target.getBoundingClientRect();
+      if (performance.now() - cachedRectAt > 100) refreshRect();
+      const rect = cachedRect;
       const width = target instanceof HTMLCanvasElement ? target.width : rect.width;
       const height = target instanceof HTMLCanvasElement ? target.height : rect.height;
       this.context.pointerMove({

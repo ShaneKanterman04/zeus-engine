@@ -81,8 +81,16 @@ export class InMemoryRoomTransport<TIntent, TSnapshot> implements RoomTransport<
     return cloneSnapshot(this.getRoom(roomId).room.tick(dt));
   }
 
+  borrowedTick(roomId: RoomId, dt: number) {
+    return this.getRoom(roomId).room.tick(dt);
+  }
+
   snapshot(roomId: RoomId) {
     return cloneSnapshot(this.getRoom(roomId).room.snapshot());
+  }
+
+  borrowedSnapshot(roomId: RoomId) {
+    return this.getRoom(roomId).room.snapshot();
   }
 
   disposeRoom(roomId: RoomId) {
