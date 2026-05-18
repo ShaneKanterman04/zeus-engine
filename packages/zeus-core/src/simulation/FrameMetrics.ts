@@ -29,6 +29,11 @@ export class ZeusFrameMetricsSampler {
   private readonly samples: Required<ZeusFrameMetricsSample>[] = [];
   private readonly maxSamples: number;
   private readonly spikeMs: number;
+  private nextSampleIndex = 0;
+  private frameMsSum = 0;
+  private simMsSum = 0;
+  private renderMsSum = 0;
+  private simStepsSum = 0;
   private spikes = 0;
   private lastSpike = 0;
   private current: ZeusFrameMetricsSnapshot = createEmptyFrameMetricsSnapshot();
@@ -49,21 +54,35 @@ export class ZeusFrameMetricsSampler {
       this.spikes += 1;
       this.lastSpike = normalized.frameMs;
     }
-    this.samples.push(normalized);
-    if (this.samples.length > this.maxSamples) this.samples.shift();
+    if (this.samples.length < this.maxSamples) {
+      this.samples.push(normalized);
+    } else {
+      const removed = this.samples[this.nextSampleIndex];
+      this.frameMsSum -= removed.frameMs;
+      this.simMsSum -= removed.simMs;
+      this.renderMsSum -= removed.renderMs;
+      this.simStepsSum -= removed.simSteps;
+      this.samples[this.nextSampleIndex] = normalized;
+    }
+    this.nextSampleIndex = (this.nextSampleIndex + 1) % this.maxSamples;
+    this.frameMsSum += normalized.frameMs;
+    this.simMsSum += normalized.simMs;
+    this.renderMsSum += normalized.renderMs;
+    this.simStepsSum += normalized.simSteps;
+    const sampleCount = this.samples.length;
     this.current = {
       fps: normalized.frameMs > 0 ? Math.round(1000 / normalized.frameMs) : 0,
       frameMs: normalized.frameMs,
-      averageFrameMs: average(this.samples.map((item) => item.frameMs)),
+      averageFrameMs: this.frameMsSum / sampleCount,
       simMs: normalized.simMs,
-      averageSimMs: average(this.samples.map((item) => item.simMs)),
+      averageSimMs: this.simMsSum / sampleCount,
       renderMs: normalized.renderMs,
-      averageRenderMs: average(this.samples.map((item) => item.renderMs)),
+      averageRenderMs: this.renderMsSum / sampleCount,
       simSteps: normalized.simSteps,
-      averageSimSteps: average(this.samples.map((item) => item.simSteps)),
+      averageSimSteps: this.simStepsSum / sampleCount,
       spikeCount: this.spikes,
       lastSpikeMs: this.lastSpike,
-      sampleCount: this.samples.length,
+      sampleCount,
     };
     return this.snapshot();
   }
@@ -74,6 +93,11 @@ export class ZeusFrameMetricsSampler {
 
   reset() {
     this.samples.length = 0;
+    this.nextSampleIndex = 0;
+    this.frameMsSum = 0;
+    this.simMsSum = 0;
+    this.renderMsSum = 0;
+    this.simStepsSum = 0;
     this.spikes = 0;
     this.lastSpike = 0;
     this.current = createEmptyFrameMetricsSnapshot();
@@ -95,9 +119,4 @@ export function createEmptyFrameMetricsSnapshot(): ZeusFrameMetricsSnapshot {
     lastSpikeMs: 0,
     sampleCount: 0,
   };
-}
-
-function average(values: number[]) {
-  if (!values.length) return 0;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }

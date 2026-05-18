@@ -78,6 +78,7 @@ export class ZeusPixiRenderer {
   private readonly atlasTextures = new Map<string, Texture>();
   private readonly frameTextures = new Map<string, Texture>();
   private readonly spritePools = new Map<ZeusPixiLayerName, Sprite[]>();
+  private readonly culledSpriteScratch: ZeusPixiCulledSpriteInstance[] = [];
   camera: Vec2 = { x: 0, y: 0 };
   qualityMode: "standard" | "low" = "standard";
 
@@ -153,17 +154,21 @@ export class ZeusPixiRenderer {
 
   addSprite(name: ZeusPixiLayerName, frame: AtlasFrame, position: Vec2, optionsOrTint: string | ZeusPixiSpriteOptions = "#ffffff") {
     const options = normalizeSpriteOptions(optionsOrTint);
-    const scale = normalizeSpriteScale(options.scale);
+    return this.addSpriteWithOptions(name, frame, position, options, options.label ?? frame.id);
+  }
+
+  private addSpriteWithOptions(name: ZeusPixiLayerName, frame: AtlasFrame, position: Vec2, options: ZeusPixiSpriteOptions | undefined, label: string) {
+    const scale = normalizeSpriteScale(options?.scale);
     const sprite = this.acquireSprite(name);
     sprite.texture = this.textureForFrame(frame);
-    sprite.label = options.label ?? frame.id;
-    sprite.tint = options.tint ?? "#ffffff";
-    sprite.alpha = options.alpha ?? 1;
-    sprite.rotation = options.rotation ?? 0;
+    sprite.label = label;
+    sprite.tint = options?.tint ?? "#ffffff";
+    sprite.alpha = options?.alpha ?? 1;
+    sprite.rotation = options?.rotation ?? 0;
     sprite.width = frame.width * scale.x;
     sprite.height = frame.height * scale.y;
-    sprite.anchor.set(options.anchor?.x ?? frame.anchor?.x ?? 0.5, options.anchor?.y ?? frame.anchor?.y ?? 0.5);
-    sprite.position.set(position.x + (options.offset?.x ?? 0), position.y + (options.offset?.y ?? 0));
+    sprite.anchor.set(options?.anchor?.x ?? frame.anchor?.x ?? 0.5, options?.anchor?.y ?? frame.anchor?.y ?? 0.5);
+    sprite.position.set(position.x + (options?.offset?.x ?? 0), position.y + (options?.offset?.y ?? 0));
     sprite.visible = true;
     this.layers.get(name)?.addChild(sprite);
     return sprite;
@@ -187,13 +192,18 @@ export class ZeusPixiRenderer {
     viewport: { x: number; y: number; width: number; height: number },
     margin = 160,
   ) {
-    const visible = instances
-      .filter((instance) => spriteInViewport(instance, viewport, margin))
-      .sort((a, b) => (a.ySort ?? a.position.y) - (b.ySort ?? b.position.y));
-    for (const instance of visible) {
-      this.addSprite(name, instance.frame, instance.position, { ...instance.options, label: instance.id });
+    const visible = this.culledSpriteScratch;
+    visible.length = 0;
+    for (const instance of instances) {
+      if (spriteInViewport(instance, viewport, margin)) visible.push(instance);
     }
-    return visible.length;
+    visible.sort((a, b) => (a.ySort ?? a.position.y) - (b.ySort ?? b.position.y));
+    for (const instance of visible) {
+      this.addSpriteWithOptions(name, instance.frame, instance.position, instance.options, instance.id);
+    }
+    const visibleCount = visible.length;
+    visible.length = 0;
+    return visibleCount;
   }
 
   async loadAtlasTextures(assets: AssetManifestRegistry, atlasIds: string[], basePath = "") {
