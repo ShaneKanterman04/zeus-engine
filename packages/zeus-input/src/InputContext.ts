@@ -114,7 +114,8 @@ export class InputContext {
   }
 
   pointerMove(pointer: Vec2) {
-    this.state.pointer = { ...pointer };
+    this.state.pointer.x = pointer.x;
+    this.state.pointer.y = pointer.y;
   }
 
   consumePressed(action: string) {

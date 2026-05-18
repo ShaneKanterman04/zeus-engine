@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AssetManifestRegistry, validateAssetManifest } from "../packages/zeus-assets/src/AssetManifest";
+import { ComponentStore } from "../packages/zeus-core/src/ecs/ComponentStore";
 import { FixedStepLoop } from "../packages/zeus-core/src/simulation/FixedStepLoop";
 import { zeusRaycastCircles } from "../packages/zeus-core/src/projectiles";
 import { InputContext } from "../packages/zeus-input/src/InputContext";
@@ -76,6 +77,22 @@ describe("InputContext", () => {
 
     expect(input.state.actions.has("fire")).toBe(false);
     expect(input.state.actions.has("interact")).toBe(true);
+  });
+});
+
+describe("ComponentStore", () => {
+  it("keeps cloned component access by default and exposes borrowed hot-path views", () => {
+    const store = new ComponentStore<{ position: { x: number; y: number } }>();
+    const component = { position: { x: 1, y: 2 } };
+    store.set("player", component);
+    component.position.x = 99;
+    expect(store.get("player")).toEqual({ position: { x: 1, y: 2 } });
+
+    const borrowed = { position: { x: 3, y: 4 } };
+    store.setBorrowed("light", borrowed);
+    expect(store.getBorrowed("light")).toBe(borrowed);
+    expect(store.borrowedEntries().get("light")).toBe(borrowed);
+    expect(store.entries().get("light")).toEqual({ position: { x: 3, y: 4 } });
   });
 });
 

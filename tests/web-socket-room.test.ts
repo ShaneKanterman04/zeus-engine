@@ -1,10 +1,39 @@
 import { describe, expect, it } from "vitest";
-import type { AuthoritativeRoom } from "../packages/zeus-net/src/inMemoryTransport";
+import { InMemoryRoomTransport, type AuthoritativeRoom } from "../packages/zeus-net/src/inMemoryTransport";
 import { ZeusWebSocketRoomClient } from "../packages/zeus-net/src/webSocketRoomClient";
 import { ZeusWebSocketRoomServer } from "../packages/zeus-net/src/webSocketRoomServer";
 
 type Intent = { move: number };
 type Snapshot = { joined: string[]; x: number };
+
+describe("InMemoryRoomTransport", () => {
+  it("keeps cloned snapshots by default and exposes borrowed snapshots for local hot paths", () => {
+    const state = { joined: [] as string[], x: 0 };
+    const transport = new InMemoryRoomTransport<Intent, Snapshot>();
+    transport.createRoom("room", {
+      join(clientId) {
+        state.joined = [clientId];
+        return state;
+      },
+      receiveIntent(_clientId, intent) {
+        state.x += intent.move;
+      },
+      tick() {
+        return state;
+      },
+      snapshot() {
+        return state;
+      },
+    });
+    const join = transport.joinRoom("room", "host");
+    join.snapshot.x = 99;
+    expect(transport.snapshot("room").x).toBe(0);
+    transport.sendIntent("room", "host", { move: 2 });
+    const borrowed = transport.borrowedTick("room", 1 / 20);
+    borrowed.x = 7;
+    expect(transport.borrowedSnapshot("room").x).toBe(7);
+  });
+});
 
 describe("ZeusWebSocketRoomServer", () => {
   it("issues reconnect tokens and restores snapshots without rejoining", async () => {

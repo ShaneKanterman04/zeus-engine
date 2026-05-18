@@ -108,18 +108,18 @@ function drawCreekDetails(
   style: PixiCreekStyle,
 ) {
   const random = seededRandom(waterway.seed ?? hashString(waterway.id ?? "waterway"));
-  const samples = samplePolyline(points, Math.max(84, width * 1.2));
+  const samples = samplePolylineWithTangents(points, Math.max(84, width * 1.2));
   const highlightWidth = Math.max(1.5, width * 0.024);
 
   for (let index = 1; index < samples.length - 1; index += 1) {
-    const tangent = nearestTangent(points, samples[index]);
+    const tangent = samples[index].tangent;
     const normal = { x: -tangent.y, y: tangent.x };
     const side = random() > 0.5 ? 1 : -1;
     const offset = (random() - 0.5) * width * 0.45;
     const length = width * (0.16 + random() * 0.16);
     const center = {
-      x: samples[index].x + normal.x * offset,
-      y: samples[index].y + normal.y * offset,
+      x: samples[index].position.x + normal.x * offset,
+      y: samples[index].position.y + normal.y * offset,
     };
 
     graphics
@@ -130,8 +130,8 @@ function drawCreekDetails(
     if (index % 2 === 0) {
       const bankOffset = side * (width * 0.55 + bankWidth * (0.35 + random() * 0.65));
       const rock = {
-        x: samples[index].x + normal.x * bankOffset,
-        y: samples[index].y + normal.y * bankOffset,
+        x: samples[index].position.x + normal.x * bankOffset,
+        y: samples[index].position.y + normal.y * bankOffset,
       };
       graphics
         .ellipse(rock.x, rock.y, 3 + random() * 5, 2 + random() * 3)
@@ -172,30 +172,30 @@ function drawLakeDetails(graphics: Graphics, waterBody: PixiWaterBody, style: Pi
   }
 }
 
-function nearestTangent(points: readonly Vec2[], point: Vec2) {
-  let bestStart = points[0];
-  let bestEnd = points[1];
-  let closest = Number.POSITIVE_INFINITY;
-
-  for (let index = 1; index < points.length; index += 1) {
-    const start = points[index - 1];
-    const end = points[index];
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const lengthSquared = dx * dx + dy * dy;
-    if (lengthSquared === 0) continue;
-    const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
-    const projected = { x: start.x + dx * t, y: start.y + dy * t };
-    const distanceSquared = (point.x - projected.x) ** 2 + (point.y - projected.y) ** 2;
-    if (distanceSquared < closest) {
-      closest = distanceSquared;
-      bestStart = start;
-      bestEnd = end;
+function samplePolylineWithTangents(points: readonly Vec2[], spacing: number) {
+  const samples = samplePolyline(points, spacing);
+  const result: { position: Vec2; tangent: Vec2 }[] = [];
+  let segmentIndex = 1;
+  for (const position of samples) {
+    while (segmentIndex < points.length - 1 && isPastSegment(position, points[segmentIndex - 1], points[segmentIndex])) {
+      segmentIndex += 1;
     }
+    result.push({ position, tangent: tangentForSegment(points[segmentIndex - 1], points[segmentIndex]) });
   }
+  return result;
+}
 
-  const dx = bestEnd.x - bestStart.x;
-  const dy = bestEnd.y - bestStart.y;
+function isPastSegment(point: Vec2, start: Vec2, end: Vec2) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared === 0) return true;
+  return ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared >= 1;
+}
+
+function tangentForSegment(start: Vec2, end: Vec2) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
   const length = Math.hypot(dx, dy) || 1;
   return { x: dx / length, y: dy / length };
 }

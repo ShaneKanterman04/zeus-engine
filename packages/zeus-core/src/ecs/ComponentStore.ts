@@ -7,9 +7,17 @@ export class ComponentStore<TComponent> {
     this.components.set(entityId, structuredClone(component));
   }
 
+  setBorrowed(entityId: string, component: TComponent) {
+    this.components.set(entityId, component);
+  }
+
   get(entityId: string) {
     const component = this.components.get(entityId);
     return component === undefined ? undefined : structuredClone(component);
+  }
+
+  getBorrowed(entityId: string) {
+    return this.components.get(entityId);
   }
 
   require(entityId: string) {
@@ -28,5 +36,9 @@ export class ComponentStore<TComponent> {
 
   entries(): ComponentMap<TComponent> {
     return new Map([...this.components.entries()].map(([id, component]) => [id, structuredClone(component)]));
+  }
+
+  borrowedEntries(): ComponentMap<TComponent> {
+    return this.components;
   }
 }
