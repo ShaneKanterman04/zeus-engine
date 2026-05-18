@@ -35,6 +35,12 @@ export {
   zeusRectIntersectsRect,
 } from "./worldLayers.js";
 export { zeusEntitiesWithinRadius, zeusEntityDistanceFromPoint, zeusNearestEntity } from "./entityQueries.js";
+export {
+  zeusLineOfSight,
+  zeusSegmentIntersectsCircle,
+  zeusSegmentIntersectsRect,
+  zeusSegmentsIntersect,
+} from "./lineOfSight.js";
 export { ZeusWorldLayerIndex } from "./worldLayerIndex.js";
 export type { FixedStepLoopOptions } from "./simulation/FixedStepLoop.js";
 export type {
@@ -81,3 +87,4 @@ export type {
   ZeusEntityRadiusQueryOptions,
   ZeusNearestEntityOptions,
 } from "./entityQueries.js";
+export type { ZeusCircleBlocker, ZeusLineOfSightBlocker, ZeusLineOfSightResult, ZeusRectBlocker } from "./lineOfSight.js";
