@@ -106,8 +106,7 @@ import { advanceThreatMeter, classifyThreatStage } from '@zeus/ai';
 Networking entry points:
 
 ```ts
-import { createWebSocketRoomClient } from '@zeus/net/web-socket-room-client';
-import { createWebSocketRoomServer } from '@zeus/net/web-socket-room-server';
+import { ZeusWebSocketRoomClient, ZeusWebSocketRoomServer } from '@zeus/net';
 ```
 
 ## Docs

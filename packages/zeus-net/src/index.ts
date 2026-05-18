@@ -4,6 +4,7 @@ export type { ZeusRoomHandler, ZeusRoomSnapshot } from "./rooms/InMemoryRoomHost
 export { InMemoryRoomTransport } from "./inMemoryTransport.js";
 export { ZeusWebSocketRoomClient } from "./webSocketRoomClient.js";
 export type { ZeusWebSocketRoomClientOptions, ZeusWebSocketRoomJoin } from "./webSocketRoomClient.js";
+export { ZeusWebSocketRoomServer } from "./webSocketRoomServer.js";
 export { parseZeusSocketMessage, stringifyZeusSocketMessage } from "./webSocketProtocol.js";
 export type { ZeusSocketMessage } from "./webSocketProtocol.js";
 export type {
