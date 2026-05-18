@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { AssetManifestRegistry, validateAssetManifest } from "../packages/zeus-assets/src/AssetManifest";
 import { ComponentStore } from "../packages/zeus-core/src/ecs/ComponentStore";
+import { zeusEntitiesWithinRadius, zeusNearestEntity } from "../packages/zeus-core/src/entityQueries";
 import { FixedStepLoop } from "../packages/zeus-core/src/simulation/FixedStepLoop";
 import { zeusRaycastCircles } from "../packages/zeus-core/src/projectiles";
+import type { Entity } from "../packages/zeus-core/src/types";
 import { InputContext } from "../packages/zeus-input/src/InputContext";
 import { applyInputSnapshot, copyInputState, createInputSnapshot } from "../packages/zeus-input/src/InputSnapshot";
 
@@ -162,6 +164,35 @@ describe("projectile raycasts", () => {
     );
 
     expect(hit?.item.id).toBe("target");
+  });
+});
+
+describe("entity query helpers", () => {
+  const entities: Entity[] = [
+    { id: "player", kind: "player", position: { x: 0, y: 0 }, radius: 8 },
+    { id: "deer", kind: "animal", position: { x: 20, y: 0 }, radius: 6 },
+    { id: "wolf", kind: "animal", position: { x: 50, y: 0 }, radius: 10, solid: true },
+  ];
+
+  it("returns entities within a radius and can sort nearest first", () => {
+    const results = zeusEntitiesWithinRadius(entities, { x: 12, y: 0 }, 20, { sort: "nearest" });
+
+    expect(results.map((result) => result.entity.id)).toEqual(["deer", "player"]);
+    expect(results.map((result) => result.distance)).toEqual([8, 12]);
+  });
+
+  it("supports predicates and solid radius distance", () => {
+    const results = zeusEntitiesWithinRadius(entities, { x: 41, y: 0 }, 2, {
+      includeSolidRadius: true,
+      predicate: (entity) => entity.solid === true,
+    });
+
+    expect(results).toEqual([{ entity: entities[2], distance: 0 }]);
+  });
+
+  it("finds the nearest matching entity within an optional max distance", () => {
+    expect(zeusNearestEntity(entities, { x: 30, y: 0 }, { predicate: (entity) => entity.kind === "animal" })?.entity.id).toBe("deer");
+    expect(zeusNearestEntity(entities, { x: 80, y: 0 }, { maxDistance: 10 })).toBeUndefined();
   });
 });
 
