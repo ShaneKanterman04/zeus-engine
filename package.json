@@ -16,6 +16,7 @@
     "editor:kill-server": "node scripts/editor-kill-server.mjs",
     "editor:package": "node scripts/editor-cmake.mjs package",
     "test": "vitest run",
+    "perf:bench": "vitest run tests/performance-bench.test.ts --reporter=verbose",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
   },
