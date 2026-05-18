@@ -125,14 +125,30 @@ function validateChunk(
 ) {
   const intersectingRegions = regions.filter((region) => zeusRectIntersectsRect(chunk.bounds, region.bounds)).map((region) => region.id);
   const intersectingZones = zones.filter((zone) => zeusRectIntersectsRect(chunk.bounds, zone.bounds)).map((zone) => zone.id);
-  if (chunk.regions && missingRefs(chunk.regions, intersectingRegions).length > 0) {
+  const regionIds = new Set(regions.map((region) => region.id));
+  const zoneIds = new Set(zones.map((zone) => zone.id));
+  const knownRegionRefs = (chunk.regions ?? intersectingRegions).filter((regionId) => regionIds.has(regionId));
+  const knownZoneRefs = (chunk.foliageZones ?? intersectingZones).filter((zoneId) => zoneIds.has(zoneId));
+  for (const regionId of chunk.regions ?? []) {
+    if (!regionIds.has(regionId)) errors.push(`Chunk '${chunk.key}' references unknown region '${regionId}'`);
+  }
+  for (const zoneId of chunk.foliageZones ?? []) {
+    if (!zoneIds.has(zoneId)) errors.push(`Chunk '${chunk.key}' references unknown foliage zone '${zoneId}'`);
+  }
+  if (
+    chunk.regions &&
+    (missingRefs(chunk.regions, intersectingRegions).length > 0 || missingRefs(intersectingRegions, chunk.regions).length > 0)
+  ) {
     warnings.push(`Chunk '${chunk.key}' region refs do not match geometry`);
   }
-  if (chunk.foliageZones && missingRefs(chunk.foliageZones, intersectingZones).length > 0) {
+  if (
+    chunk.foliageZones &&
+    (missingRefs(chunk.foliageZones, intersectingZones).length > 0 || missingRefs(intersectingZones, chunk.foliageZones).length > 0)
+  ) {
     warnings.push(`Chunk '${chunk.key}' foliage zone refs do not match geometry`);
   }
-  if ((chunk.regions ?? intersectingRegions).length === 0) errors.push(`Chunk '${chunk.key}' has no region coverage`);
-  if ((chunk.foliageZones ?? intersectingZones).length === 0) errors.push(`Chunk '${chunk.key}' has no foliage zone coverage`);
+  if (knownRegionRefs.length === 0) errors.push(`Chunk '${chunk.key}' has no region coverage`);
+  if (knownZoneRefs.length === 0) errors.push(`Chunk '${chunk.key}' has no foliage zone coverage`);
 }
 
 function validateFoliageInstances(
