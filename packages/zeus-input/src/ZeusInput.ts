@@ -15,7 +15,12 @@ export class ZeusInput {
     });
     target.addEventListener("pointermove", (event) => {
       const rect = target.getBoundingClientRect();
-      this.context.pointerMove({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+      const width = target instanceof HTMLCanvasElement ? target.width : rect.width;
+      const height = target instanceof HTMLCanvasElement ? target.height : rect.height;
+      this.context.pointerMove({
+        x: ((event.clientX - rect.left) / Math.max(1, rect.width)) * width,
+        y: ((event.clientY - rect.top) / Math.max(1, rect.height)) * height,
+      });
     });
   }
 

@@ -10,6 +10,7 @@ export {
   polylineLength,
   samplePolyline,
 } from "./world.js";
+export { zeusRaycastCircle, zeusRaycastCircles } from "./projectiles.js";
 export { FixedStepLoop } from "./simulation/FixedStepLoop.js";
 export { ZeusFrameMetricsSampler, createEmptyFrameMetricsSnapshot } from "./simulation/FrameMetrics.js";
 export { SystemRunner } from "./simulation/SystemRunner.js";
@@ -45,6 +46,7 @@ export type { ManagedScene } from "./scenes/SceneManager.js";
 export type { ComponentMap } from "./ecs/index.js";
 export type { ZeusAmbientLight, ZeusLightSource, ZeusResolvedLightSource } from "./lighting.js";
 export type { Entity, EntityId, InputState, Vec2, ZeusScene, ZeusSystem } from "./types.js";
+export type { ZeusProjectileCircle, ZeusProjectileRayHit } from "./projectiles.js";
 export type { ZeusSpatialItem, ZeusSpatialQueryRect } from "./spatial/SpatialHashGrid.js";
 export type {
   ZeusActiveChunkOptions,

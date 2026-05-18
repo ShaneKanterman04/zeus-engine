@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AssetManifestRegistry, validateAssetManifest } from "../packages/zeus-assets/src/AssetManifest";
 import { FixedStepLoop } from "../packages/zeus-core/src/simulation/FixedStepLoop";
+import { zeusRaycastCircles } from "../packages/zeus-core/src/projectiles";
 import { InputContext } from "../packages/zeus-input/src/InputContext";
 
 describe("FixedStepLoop", () => {
@@ -75,6 +76,37 @@ describe("InputContext", () => {
 
     expect(input.state.actions.has("fire")).toBe(false);
     expect(input.state.actions.has("interact")).toBe(true);
+  });
+});
+
+describe("projectile raycasts", () => {
+  it("returns the nearest circle hit on the aim segment", () => {
+    const hit = zeusRaycastCircles(
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      [
+        { id: "far", position: { x: 80, y: 0 }, radius: 10 },
+        { id: "near", position: { x: 40, y: 0 }, radius: 10 },
+      ],
+    );
+
+    expect(hit?.item.id).toBe("near");
+    expect(hit?.distance).toBeCloseTo(30);
+    expect(hit?.point).toEqual({ x: 30, y: 0 });
+  });
+
+  it("ignores circles containing the shooter when requested", () => {
+    const hit = zeusRaycastCircles(
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      [
+        { id: "origin-cover", position: { x: 0, y: 0 }, radius: 20 },
+        { id: "target", position: { x: 60, y: 0 }, radius: 8 },
+      ],
+      { ignoreContainingOrigin: true },
+    );
+
+    expect(hit?.item.id).toBe("target");
   });
 });
 
