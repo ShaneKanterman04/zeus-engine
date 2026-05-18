@@ -278,6 +278,8 @@ describe("world layer validation", () => {
         "Route 'bad-route' missing kind",
         "Route 'bad-route' needs at least two points",
         "Route 'bad-route' point 0 is outside world bounds",
+        "Chunk '0,0' references unknown region 'not-geometry'",
+        "Chunk '0,0' references unknown foliage zone 'not-geometry'",
         "Foliage zone 'outside' has invalid count",
         "Foliage zone 'outside' has no species weights",
       ]),
@@ -334,6 +336,35 @@ describe("world layer validation", () => {
       ]),
     );
     expect(result.warnings).toEqual(expect.arrayContaining(["Chunk 'foliage-ref-mismatch' foliage zone refs do not match geometry"]));
+  });
+
+  it("does not let stale chunk refs spoof region coverage", () => {
+    const result = validateWorldLayers({
+      mapId: "stale-chunk-refs",
+      bounds: { width: 256, height: 128 },
+      regions: [
+        {
+          id: "east",
+          role: "resource",
+          bounds: { x: 192, y: 0, width: 64, height: 128 },
+        },
+      ],
+      chunks: [
+        {
+          key: "0:0",
+          x: 0,
+          y: 0,
+          bounds: { x: 0, y: 0, width: 64, height: 128 },
+          regions: ["missing"],
+        },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toEqual(
+      expect.arrayContaining(["Chunk '0:0' references unknown region 'missing'", "Chunk '0:0' has no region coverage"]),
+    );
+    expect(result.warnings).toEqual(expect.arrayContaining(["Chunk '0:0' region refs do not match geometry"]));
   });
 
   it("reports direct region coverage gaps without using nearest-region fallback", () => {
