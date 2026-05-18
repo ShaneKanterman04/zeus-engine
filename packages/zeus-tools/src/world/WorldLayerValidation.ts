@@ -14,6 +14,7 @@ export type ZeusWorldLayerValidationOptions = ZeusWorldLayerManifest & {
   minFoliageInstancesPerChunk?: number;
   maxSolidFoliagePerChunk?: number;
   requireBlendedRegionCoverage?: boolean;
+  requireDirectRegionCoverage?: boolean;
   regionCoverageSampleSize?: number;
   regionBlendOptions?: ZeusWorldRegionBlendOptions;
 };
@@ -55,11 +56,30 @@ export function validateWorldLayers(options: ZeusWorldLayerValidationOptions): Z
   }
   for (const zone of zones) validateZone(zone, worldBounds, speciesById, errors, warnings);
   for (const chunk of chunks) validateChunk(chunk, regions, zones, errors, warnings);
+  validateDirectRegionCoverage(options, errors);
   validateBlendedRegionCoverage(options, errors);
   validateFoliageInstances(options, speciesById, zoneIds, errors);
   validateChunkDensities(options, speciesById, errors);
 
   return { ok: errors.length === 0, errors, warnings };
+}
+
+function validateDirectRegionCoverage(options: ZeusWorldLayerValidationOptions, errors: string[]) {
+  if (!options.requireDirectRegionCoverage) return;
+  const regions = options.regions ?? [];
+  if (regions.length === 0) {
+    errors.push("World has no regions for direct coverage");
+    return;
+  }
+  const sampleSize = options.regionCoverageSampleSize ?? 128;
+  for (let y = sampleSize / 2; y < options.bounds.height; y += sampleSize) {
+    for (let x = sampleSize / 2; x < options.bounds.width; x += sampleSize) {
+      if (!regions.some((region) => zeusPointInRect({ x, y }, region.bounds))) {
+        errors.push(`World has no direct region coverage near ${Math.round(x)},${Math.round(y)}`);
+        return;
+      }
+    }
+  }
 }
 
 function validateBlendedRegionCoverage(options: ZeusWorldLayerValidationOptions, errors: string[]) {
