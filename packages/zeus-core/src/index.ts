@@ -34,6 +34,7 @@ export {
   zeusRectContainsRect,
   zeusRectIntersectsRect,
 } from "./worldLayers.js";
+export { zeusEntitiesWithinRadius, zeusEntityDistanceFromPoint, zeusNearestEntity } from "./entityQueries.js";
 export { ZeusWorldLayerIndex } from "./worldLayerIndex.js";
 export type { FixedStepLoopOptions } from "./simulation/FixedStepLoop.js";
 export type {
@@ -74,3 +75,9 @@ export type {
   ZeusWorldRoute,
 } from "./worldLayers.js";
 export type { ZeusWorldLayerIndexOptions } from "./worldLayerIndex.js";
+export type {
+  ZeusEntityDistanceResult,
+  ZeusEntityPredicate,
+  ZeusEntityRadiusQueryOptions,
+  ZeusNearestEntityOptions,
+} from "./entityQueries.js";
