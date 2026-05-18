@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AssetManifestRegistry, validateAssetManifest } from "../packages/zeus-assets/src/AssetManifest";
 import { ComponentStore } from "../packages/zeus-core/src/ecs/ComponentStore";
 import { zeusEntitiesWithinRadius, zeusNearestEntity } from "../packages/zeus-core/src/entityQueries";
+import { zeusLineOfSight, zeusSegmentIntersectsCircle, zeusSegmentIntersectsRect, zeusSegmentsIntersect } from "../packages/zeus-core/src/lineOfSight";
 import { FixedStepLoop } from "../packages/zeus-core/src/simulation/FixedStepLoop";
 import { zeusRaycastCircles } from "../packages/zeus-core/src/projectiles";
 import type { Entity } from "../packages/zeus-core/src/types";
@@ -193,6 +194,30 @@ describe("entity query helpers", () => {
   it("finds the nearest matching entity within an optional max distance", () => {
     expect(zeusNearestEntity(entities, { x: 30, y: 0 }, { predicate: (entity) => entity.kind === "animal" })?.entity.id).toBe("deer");
     expect(zeusNearestEntity(entities, { x: 80, y: 0 }, { maxDistance: 10 })).toBeUndefined();
+  });
+});
+
+describe("line-of-sight geometry", () => {
+  it("detects segment intersections", () => {
+    expect(zeusSegmentsIntersect({ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }, { x: 10, y: 0 })).toBe(true);
+    expect(zeusSegmentsIntersect({ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 0, y: 5 }, { x: 10, y: 5 })).toBe(false);
+  });
+
+  it("detects circle and rect blockers along a segment", () => {
+    expect(zeusSegmentIntersectsCircle({ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 10, y: 4 }, 5)).toBe(true);
+    expect(zeusSegmentIntersectsCircle({ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 10, y: 8 }, 5)).toBe(false);
+    expect(zeusSegmentIntersectsRect({ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 8, y: -2, width: 4, height: 4 })).toBe(true);
+    expect(zeusSegmentIntersectsRect({ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 8, y: 3, width: 4, height: 4 })).toBe(false);
+  });
+
+  it("returns the first line-of-sight blocker", () => {
+    const result = zeusLineOfSight({ x: 0, y: 0 }, { x: 20, y: 0 }, [
+      { kind: "rect", id: "wall", bounds: { x: 5, y: -1, width: 2, height: 2 } },
+      { kind: "circle", id: "tree", center: { x: 10, y: 0 }, radius: 2 },
+    ]);
+
+    expect(result.blocked).toBe(true);
+    expect(result.blocker?.id).toBe("wall");
   });
 });
 
