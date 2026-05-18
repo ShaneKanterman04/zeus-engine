@@ -1,7 +1,7 @@
-import type { ClientId, RoomId } from "./inMemoryTransport.js";
+import type { ClientId, ReconnectToken, RoomId } from "./inMemoryTransport.js";
 
 export type ZeusSocketMessage<TIntent, TSnapshot> =
-  | { type: "join"; roomId: RoomId; clientId: ClientId; snapshot: TSnapshot }
+  | { type: "join"; roomId: RoomId; clientId: ClientId; reconnectToken: ReconnectToken; snapshot: TSnapshot }
   | { type: "snapshot"; roomId: RoomId; snapshot: TSnapshot }
   | { type: "intent"; intent: TIntent }
   | { type: "error"; message: string };
@@ -17,6 +17,7 @@ export function parseZeusSocketMessage<TIntent, TSnapshot>(text: string): ZeusSo
     message.type === "join" &&
     typeof message.roomId === "string" &&
     typeof message.clientId === "string" &&
+    typeof message.reconnectToken === "string" &&
     "snapshot" in message
   ) {
     return message as ZeusSocketMessage<TIntent, TSnapshot>;

@@ -2,18 +2,22 @@ import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
-import type { AuthoritativeRoom, ClientId, RoomId } from "./inMemoryTransport.js";
+import type { AuthoritativeRoom, ClientId, ReconnectToken, RoomId } from "./inMemoryTransport.js";
 import { parseZeusSocketMessage, stringifyZeusSocketMessage, type ZeusSocketMessage } from "./webSocketProtocol.js";
 
 type SocketClient = {
   socket: Duplex;
   roomId: RoomId;
   clientId: ClientId;
+  reconnectToken: ReconnectToken;
 };
 
 export class ZeusWebSocketRoomServer<TIntent, TSnapshot> {
   private readonly server: Server;
   private readonly clients = new Set<SocketClient>();
+  private readonly clientTokens = new Map<ClientId, ReconnectToken>();
+  private readonly reconnectTokens = new Map<ReconnectToken, ClientId>();
+  private nextReconnectTokenId = 1;
   private room?: { roomId: RoomId; room: AuthoritativeRoom<TIntent, TSnapshot> };
 
   constructor() {
@@ -21,27 +25,30 @@ export class ZeusWebSocketRoomServer<TIntent, TSnapshot> {
     this.server.on("upgrade", (request, socket) => {
       const url = new URL(request.url ?? "/", "http://localhost");
       const clientId = url.searchParams.get("clientId") ?? "socket-client";
+      const requestedReconnectToken = url.searchParams.get("reconnectToken");
       const roomId = url.searchParams.get("roomId") ?? this.room?.roomId;
       if (!roomId || this.room?.roomId !== roomId) {
         socket.destroy();
         return;
       }
       acceptWebSocket(request.headers["sec-websocket-key"], socket);
-      const client = { socket, roomId, clientId };
-      this.clients.add(client);
-      socket.on("data", (data) => this.receive(client, data));
-      socket.on("close", () => this.clients.delete(client));
-      socket.on("error", () => this.clients.delete(client));
       try {
-        this.send(client, { type: "join", roomId, clientId, snapshot: this.room.room.join(clientId) });
+        if (requestedReconnectToken) {
+          this.acceptReconnect(socket, roomId, clientId, requestedReconnectToken);
+        } else {
+          this.acceptJoin(socket, roomId, clientId);
+        }
       } catch (error) {
-        this.closeWithError(client, error);
+        this.closeWithError({ socket, roomId, clientId, reconnectToken: requestedReconnectToken ?? "" }, error);
       }
     });
   }
 
   hostRoom(roomId: RoomId, room: AuthoritativeRoom<TIntent, TSnapshot>) {
     this.room = { roomId, room };
+    this.clientTokens.clear();
+    this.reconnectTokens.clear();
+    this.nextReconnectTokenId = 1;
   }
 
   async listen(port = 0, host = "127.0.0.1") {
@@ -94,6 +101,44 @@ export class ZeusWebSocketRoomServer<TIntent, TSnapshot> {
 
   private send(client: SocketClient, message: ZeusSocketMessage<TIntent, TSnapshot>) {
     client.socket.write(encodeTextFrame(stringifyZeusSocketMessage(message)));
+  }
+
+  private acceptJoin(socket: Duplex, roomId: RoomId, clientId: ClientId) {
+    if (!this.room) throw new Error("No room hosted");
+    const snapshot = this.room.room.join(clientId);
+    const reconnectToken = this.clientTokens.get(clientId) ?? this.issueReconnectToken(roomId, clientId);
+    const client = { socket, roomId, clientId, reconnectToken };
+    this.registerClient(client);
+    this.send(client, { type: "join", roomId, clientId, reconnectToken, snapshot });
+  }
+
+  private acceptReconnect(socket: Duplex, roomId: RoomId, requestedClientId: ClientId, reconnectToken: ReconnectToken) {
+    if (!this.room) throw new Error("No room hosted");
+    const clientId = this.reconnectTokens.get(reconnectToken);
+    if (!clientId) throw new Error(`Invalid reconnect token for room: ${roomId}`);
+    if (clientId !== requestedClientId) throw new Error(`Reconnect token does not match client '${requestedClientId}'`);
+    const client = { socket, roomId, clientId, reconnectToken };
+    this.registerClient(client);
+    this.send(client, { type: "join", roomId, clientId, reconnectToken, snapshot: this.room.room.snapshot() });
+  }
+
+  private registerClient(client: SocketClient) {
+    for (const existing of [...this.clients]) {
+      if (existing.roomId !== client.roomId || existing.clientId !== client.clientId) continue;
+      this.clients.delete(existing);
+      existing.socket.destroy();
+    }
+    this.clients.add(client);
+    client.socket.on("data", (data) => this.receive(client, data));
+    client.socket.on("close", () => this.clients.delete(client));
+    client.socket.on("error", () => this.clients.delete(client));
+  }
+
+  private issueReconnectToken(roomId: RoomId, clientId: ClientId) {
+    const reconnectToken = `${roomId}:${clientId}:${this.nextReconnectTokenId++}`;
+    this.clientTokens.set(clientId, reconnectToken);
+    this.reconnectTokens.set(reconnectToken, clientId);
+    return reconnectToken;
   }
 
   private closeWithError(client: SocketClient, error: unknown) {
