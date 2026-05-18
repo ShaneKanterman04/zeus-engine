@@ -21,8 +21,12 @@ export default defineConfig({
   test: {
     coverage: {
       include: [
+        "packages/zeus-assets/src/AssetManifest.ts",
+        "packages/zeus-core/src/chunks/ChunkStreamer.ts",
+        "packages/zeus-core/src/simulation/FixedStepLoop.ts",
         "packages/zeus-core/src/worldLayerIndex.ts",
         "packages/zeus-core/src/worldLayers.ts",
+        "packages/zeus-input/src/InputContext.ts",
         "packages/zeus-tools/src/foliage/FoliagePlacement.ts",
         "packages/zeus-tools/src/world/WorldLayerValidation.ts",
       ],

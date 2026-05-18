@@ -20,6 +20,8 @@ export class ZeusChunkStreamer<TChunk> {
   private readonly cache = new Map<ZeusChunkKey, TChunk>();
   private readonly loading = new Map<ZeusChunkKey, Promise<void>>();
   private readonly failed = new Map<ZeusChunkKey, Error>();
+  private desiredActiveKeys = new Set<ZeusChunkKey>();
+  private generation = 0;
   private entering = new Set<ZeusChunkKey>();
   private exiting = new Set<ZeusChunkKey>();
 
@@ -27,13 +29,16 @@ export class ZeusChunkStreamer<TChunk> {
 
   updateActiveKeys(keys: readonly ZeusChunkKey[]) {
     const next = new Set(keys);
+    this.desiredActiveKeys = next;
     this.entering = new Set();
     this.exiting = new Set();
 
     for (const key of this.active.keys()) {
       if (!next.has(key)) {
-        const chunk = this.active.get(key);
-        if (chunk) this.cache.set(key, chunk);
+        if (this.active.has(key)) {
+          const chunk = this.active.get(key);
+          if (chunk !== undefined) this.cache.set(key, chunk);
+        }
         this.active.delete(key);
         this.exiting.add(key);
       }
@@ -42,9 +47,9 @@ export class ZeusChunkStreamer<TChunk> {
     for (const key of next) {
       if (this.active.has(key)) continue;
       this.entering.add(key);
-      const cached = this.cache.get(key);
-      if (cached) {
-        this.active.set(key, cached);
+      if (this.cache.has(key)) {
+        const cached = this.cache.get(key);
+        if (cached !== undefined) this.active.set(key, cached);
         this.cache.delete(key);
         continue;
       }
@@ -70,6 +75,8 @@ export class ZeusChunkStreamer<TChunk> {
   }
 
   clear() {
+    this.generation += 1;
+    this.desiredActiveKeys.clear();
     this.active.clear();
     this.cache.clear();
     this.loading.clear();
@@ -81,22 +88,27 @@ export class ZeusChunkStreamer<TChunk> {
   private load(key: ZeusChunkKey) {
     if (this.loading.has(key)) return;
     this.failed.delete(key);
+    const generation = this.generation;
     const loaded = this.options.provider(key);
     if (isPromiseLike(loaded)) {
       const promise = loaded
         .then((chunk) => {
-          if (chunk) this.active.set(key, chunk);
+          if (generation === this.generation && this.desiredActiveKeys.has(key) && chunk !== undefined) {
+            this.active.set(key, chunk);
+          }
         })
         .catch((error: unknown) => {
-          this.failed.set(key, error instanceof Error ? error : new Error(String(error)));
+          if (generation === this.generation && this.desiredActiveKeys.has(key)) {
+            this.failed.set(key, error instanceof Error ? error : new Error(String(error)));
+          }
         })
         .finally(() => {
-          this.loading.delete(key);
+          if (this.loading.get(key) === promise) this.loading.delete(key);
         });
       this.loading.set(key, promise);
       return;
     }
-    if (loaded) this.active.set(key, loaded);
+    if (loaded !== undefined) this.active.set(key, loaded);
   }
 
   private trimCache(activeKeys: ReadonlySet<ZeusChunkKey>) {
