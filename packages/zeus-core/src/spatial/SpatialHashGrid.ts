@@ -63,48 +63,70 @@ export class ZeusSpatialHashGrid<T extends ZeusSpatialItem> {
   }
 
   queryRect(rect: ZeusSpatialQueryRect) {
-    const result = new Map<string, T>();
-    for (const key of this.cellsForRect(rect)) {
+    const result: T[] = [];
+    this.forEachRect(rect, (item) => {
+      result.push(item);
+    });
+    return result;
+  }
+
+  forEachRect(rect: ZeusSpatialQueryRect, visit: (item: T) => void) {
+    const visited = new Set<string>();
+    this.forEachCellKeyInRect(rect, (key) => {
       const bucket = this.cells.get(key);
-      if (!bucket) continue;
+      if (!bucket) return;
       for (const id of bucket) {
+        if (visited.has(id)) continue;
         const item = this.items.get(id);
         if (!item) continue;
-        if (circleIntersectsRect(item.position, item.radius, rect)) result.set(id, item);
+        if (!circleIntersectsRect(item.position, item.radius, rect)) continue;
+        visited.add(id);
+        visit(item);
       }
-    }
-    return [...result.values()];
+    });
   }
 
   queryCircle(position: Vec2, radius: number) {
-    const result = new Map<string, T>();
+    const result: T[] = [];
+    this.forEachCircle(position, radius, (item) => {
+      result.push(item);
+    });
+    return result;
+  }
+
+  forEachCircle(position: Vec2, radius: number, visit: (item: T) => void) {
+    const visited = new Set<string>();
     const radiusSquared = radius * radius;
-    for (const key of this.cellsForCircle(position, radius)) {
+    this.forEachCellKeyInRect({ x: position.x - radius, y: position.y - radius, width: radius * 2, height: radius * 2 }, (key) => {
       const bucket = this.cells.get(key);
-      if (!bucket) continue;
+      if (!bucket) return;
       for (const id of bucket) {
+        if (visited.has(id)) continue;
         const item = this.items.get(id);
         if (!item) continue;
         const dx = item.position.x - position.x;
         const dy = item.position.y - position.y;
         const reach = radius + item.radius;
-        if (dx * dx + dy * dy <= Math.max(radiusSquared, reach * reach)) result.set(id, item);
+        if (dx * dx + dy * dy > Math.max(radiusSquared, reach * reach)) continue;
+        visited.add(id);
+        visit(item);
       }
-    }
-    return [...result.values()];
+    });
   }
 
   nearest(position: Vec2, radius: number, predicate: (item: T) => boolean = () => true) {
     let nearest: T | undefined;
-    let nearestDistance = Number.POSITIVE_INFINITY;
-    for (const item of this.queryCircle(position, radius)) {
-      if (!predicate(item)) continue;
-      const distance = Math.hypot(item.position.x - position.x, item.position.y - position.y);
-      if (distance < nearestDistance) {
+    let nearestDistanceSquared = Number.POSITIVE_INFINITY;
+    this.forEachCircle(position, radius, (item) => {
+      if (!predicate(item)) return;
+      const dx = item.position.x - position.x;
+      const dy = item.position.y - position.y;
+      const distanceSquared = dx * dx + dy * dy;
+      if (distanceSquared < nearestDistanceSquared) {
         nearest = item;
-        nearestDistance = distance;
+        nearestDistanceSquared = distanceSquared;
       }
-    }
+    });
     return nearest;
   }
 
@@ -113,15 +135,19 @@ export class ZeusSpatialHashGrid<T extends ZeusSpatialItem> {
   }
 
   private cellsForRect(rect: ZeusSpatialQueryRect) {
+    const keys: string[] = [];
+    this.forEachCellKeyInRect(rect, (key) => keys.push(key));
+    return keys;
+  }
+
+  private forEachCellKeyInRect(rect: ZeusSpatialQueryRect, visit: (key: string) => void) {
     const minX = Math.floor(rect.x / this.cellSize);
     const minY = Math.floor(rect.y / this.cellSize);
     const maxX = Math.floor((rect.x + rect.width) / this.cellSize);
     const maxY = Math.floor((rect.y + rect.height) / this.cellSize);
-    const keys: string[] = [];
     for (let y = minY; y <= maxY; y += 1) {
-      for (let x = minX; x <= maxX; x += 1) keys.push(`${x}:${y}`);
+      for (let x = minX; x <= maxX; x += 1) visit(`${x}:${y}`);
     }
-    return keys;
   }
 }
 
