@@ -38,6 +38,18 @@ export type ZeusPixiLayerStats = Record<ZeusPixiLayerName, number> & {
   total: number;
 };
 
+export type ZeusPixiStaticChunkOptions = {
+  sort?: boolean;
+  visible?: boolean;
+};
+
+export type ZeusPixiStaticChunkStats = {
+  chunks: number;
+  visibleChunks: number;
+  children: number;
+  visibleChildren: number;
+};
+
 export type AtlasFrameSequence = {
   id?: string;
   frames: readonly AtlasFrame[];
@@ -78,6 +90,8 @@ export class ZeusPixiRenderer {
   private readonly atlasTextures = new Map<string, Texture>();
   private readonly frameTextures = new Map<string, Texture>();
   private readonly spritePools = new Map<ZeusPixiLayerName, Sprite[]>();
+  private readonly staticChunkContainers = new Map<ZeusPixiLayerName, Map<string, Container>>();
+  private readonly staticChunkContainerSet = new WeakSet<Container>();
   private readonly culledSpriteScratch: ZeusPixiCulledSpriteInstance[] = [];
   camera: Vec2 = { x: 0, y: 0 };
   qualityMode: "standard" | "low" = "standard";
@@ -113,7 +127,12 @@ export class ZeusPixiRenderer {
   clearLayer(name: ZeusPixiLayerName) {
     const layer = this.layers.get(name);
     if (!layer) return;
-    const removed = layer.removeChildren();
+    const removed = [];
+    for (const child of [...layer.children]) {
+      if (child instanceof Container && this.staticChunkContainerSet.has(child)) continue;
+      layer.removeChild(child);
+      removed.push(child);
+    }
     let pool = this.spritePools.get(name);
     if (!pool) {
       pool = [];
@@ -158,18 +177,8 @@ export class ZeusPixiRenderer {
   }
 
   private addSpriteWithOptions(name: ZeusPixiLayerName, frame: AtlasFrame, position: Vec2, options: ZeusPixiSpriteOptions | undefined, label: string) {
-    const scale = normalizeSpriteScale(options?.scale);
     const sprite = this.acquireSprite(name);
-    sprite.texture = this.textureForFrame(frame);
-    sprite.label = label;
-    sprite.tint = options?.tint ?? "#ffffff";
-    sprite.alpha = options?.alpha ?? 1;
-    sprite.rotation = options?.rotation ?? 0;
-    sprite.width = frame.width * scale.x;
-    sprite.height = frame.height * scale.y;
-    sprite.anchor.set(options?.anchor?.x ?? frame.anchor?.x ?? 0.5, options?.anchor?.y ?? frame.anchor?.y ?? 0.5);
-    sprite.position.set(position.x + (options?.offset?.x ?? 0), position.y + (options?.offset?.y ?? 0));
-    sprite.visible = true;
+    this.configureSprite(sprite, frame, position, options, label);
     this.layers.get(name)?.addChild(sprite);
     return sprite;
   }
@@ -225,6 +234,85 @@ export class ZeusPixiRenderer {
     return instances.length;
   }
 
+  setStaticChunkSprites(
+    name: ZeusPixiLayerName,
+    chunkKey: string,
+    instances: readonly ZeusPixiCulledSpriteInstance[],
+    options: ZeusPixiStaticChunkOptions = {},
+  ) {
+    const container = this.staticChunkContainer(name, chunkKey);
+    this.destroyContainerChildren(container);
+    const addInstance = (instance: ZeusPixiCulledSpriteInstance) => {
+      const sprite = new Sprite(Texture.WHITE);
+      this.configureSprite(sprite, instance.frame, instance.position, instance.options, instance.id);
+      container.addChild(sprite);
+    };
+    if (options.sort ?? true) {
+      const visible = this.culledSpriteScratch;
+      visible.length = 0;
+      for (const instance of instances) visible.push(instance);
+      visible.sort((a, b) => (a.ySort ?? a.position.y) - (b.ySort ?? b.position.y));
+      for (const instance of visible) addInstance(instance);
+      visible.length = 0;
+    } else {
+      for (const instance of instances) addInstance(instance);
+    }
+    container.visible = options.visible ?? true;
+    return container.children.length;
+  }
+
+  setVisibleStaticChunks(name: ZeusPixiLayerName, activeKeys: Iterable<string>) {
+    const chunks = this.staticChunkContainers.get(name);
+    if (!chunks) return this.staticChunkStats(name);
+    const active = new Set(activeKeys);
+    for (const [key, container] of chunks) {
+      container.visible = active.has(key);
+    }
+    return this.staticChunkStats(name);
+  }
+
+  invalidateStaticChunk(name: ZeusPixiLayerName, chunkKey: string) {
+    const chunks = this.staticChunkContainers.get(name);
+    const container = chunks?.get(chunkKey);
+    if (!chunks || !container) return false;
+    chunks.delete(chunkKey);
+    this.staticChunkContainerSet.delete(container);
+    container.removeFromParent();
+    this.destroyContainerChildren(container);
+    container.destroy();
+    return true;
+  }
+
+  clearStaticChunks(name?: ZeusPixiLayerName) {
+    const names = name ? [name] : [...this.staticChunkContainers.keys()];
+    for (const layerName of names) {
+      const chunks = this.staticChunkContainers.get(layerName);
+      if (!chunks) continue;
+      for (const key of [...chunks.keys()]) {
+        this.invalidateStaticChunk(layerName, key);
+      }
+      this.staticChunkContainers.delete(layerName);
+    }
+  }
+
+  staticChunkStats(name?: ZeusPixiLayerName): ZeusPixiStaticChunkStats {
+    const stats: ZeusPixiStaticChunkStats = { chunks: 0, visibleChunks: 0, children: 0, visibleChildren: 0 };
+    const chunkMaps = name ? [this.staticChunkContainers.get(name)] : [...this.staticChunkContainers.values()];
+    for (const chunks of chunkMaps) {
+      if (!chunks) continue;
+      for (const container of chunks.values()) {
+        const childCount = container.children.length;
+        stats.chunks += 1;
+        stats.children += childCount;
+        if (container.visible) {
+          stats.visibleChunks += 1;
+          stats.visibleChildren += childCount;
+        }
+      }
+    }
+    return stats;
+  }
+
   async loadAtlasTextures(assets: AssetManifestRegistry, atlasIds: string[], basePath = "") {
     for (const atlasId of atlasIds) {
       const source = assets.resolve(atlasId, basePath);
@@ -252,9 +340,52 @@ export class ZeusPixiRenderer {
     return texture;
   }
 
+  private configureSprite(
+    sprite: Sprite,
+    frame: AtlasFrame,
+    position: Vec2,
+    options: ZeusPixiSpriteOptions | undefined,
+    label: string,
+  ) {
+    const scale = normalizeSpriteScale(options?.scale);
+    sprite.texture = this.textureForFrame(frame);
+    sprite.label = label;
+    sprite.tint = options?.tint ?? "#ffffff";
+    sprite.alpha = options?.alpha ?? 1;
+    sprite.rotation = options?.rotation ?? 0;
+    sprite.width = frame.width * scale.x;
+    sprite.height = frame.height * scale.y;
+    sprite.anchor.set(options?.anchor?.x ?? frame.anchor?.x ?? 0.5, options?.anchor?.y ?? frame.anchor?.y ?? 0.5);
+    sprite.position.set(position.x + (options?.offset?.x ?? 0), position.y + (options?.offset?.y ?? 0));
+    sprite.visible = true;
+  }
+
   private acquireSprite(name: ZeusPixiLayerName) {
     const sprite = this.spritePools.get(name)?.pop();
     return sprite ?? new Sprite(Texture.WHITE);
+  }
+
+  private staticChunkContainer(name: ZeusPixiLayerName, chunkKey: string) {
+    let chunks = this.staticChunkContainers.get(name);
+    if (!chunks) {
+      chunks = new Map();
+      this.staticChunkContainers.set(name, chunks);
+    }
+    const existing = chunks.get(chunkKey);
+    if (existing) return existing;
+    const container = new Container();
+    container.label = `static:${name}:${chunkKey}`;
+    chunks.set(chunkKey, container);
+    this.staticChunkContainerSet.add(container);
+    this.layers.get(name)?.addChild(container);
+    return container;
+  }
+
+  private destroyContainerChildren(container: Container) {
+    const removed = container.removeChildren();
+    for (const child of removed) {
+      child.destroy();
+    }
   }
 
   resizeToWindow(width = 1280, height = 720) {
