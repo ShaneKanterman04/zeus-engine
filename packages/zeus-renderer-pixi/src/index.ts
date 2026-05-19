@@ -206,6 +206,25 @@ export class ZeusPixiRenderer {
     return visibleCount;
   }
 
+  addVisibleSprites(name: ZeusPixiLayerName, instances: readonly ZeusPixiCulledSpriteInstance[], sort = true) {
+    if (sort) {
+      const visible = this.culledSpriteScratch;
+      visible.length = 0;
+      for (const instance of instances) visible.push(instance);
+      visible.sort((a, b) => (a.ySort ?? a.position.y) - (b.ySort ?? b.position.y));
+      for (const instance of visible) {
+        this.addSpriteWithOptions(name, instance.frame, instance.position, instance.options, instance.id);
+      }
+      const visibleCount = visible.length;
+      visible.length = 0;
+      return visibleCount;
+    }
+    for (const instance of instances) {
+      this.addSpriteWithOptions(name, instance.frame, instance.position, instance.options, instance.id);
+    }
+    return instances.length;
+  }
+
   async loadAtlasTextures(assets: AssetManifestRegistry, atlasIds: string[], basePath = "") {
     for (const atlasId of atlasIds) {
       const source = assets.resolve(atlasId, basePath);
