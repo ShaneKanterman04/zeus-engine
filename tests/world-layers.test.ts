@@ -144,7 +144,13 @@ describe("ZeusWorldLayerIndex", () => {
       "woodlot",
     ]);
     expect(index.foliageInRect({ x: 20, y: 30, width: 8, height: 8 }).map((instance) => instance.id)).toEqual(["pine.1"]);
+    const rectResult: ReturnType<typeof index.foliageInRect> = [];
+    expect(index.foliageInRectInto({ x: 20, y: 30, width: 8, height: 8 }, rectResult)).toBe(rectResult);
+    expect(rectResult.map((instance) => instance.id)).toEqual(["pine.1"]);
     expect(index.foliageInCircle({ x: 48, y: 40 }, 1).map((instance) => instance.id)).toEqual(["pine.1"]);
+    const circleResult: ReturnType<typeof index.foliageInCircle> = [];
+    expect(index.foliageInCircleInto({ x: 48, y: 40 }, 1, circleResult)).toBe(circleResult);
+    expect(circleResult.map((instance) => instance.id)).toEqual(["pine.1"]);
     expect(index.regionBlendCells({ bounds: { width: 128, height: 128 }, cellSize: 128 })).toHaveLength(1);
     expect(index.foliageSpecies("missing")).toBeUndefined();
     expect(index.foliageZone("missing")).toBeUndefined();

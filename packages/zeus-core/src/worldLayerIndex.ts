@@ -95,7 +95,15 @@ export class ZeusWorldLayerIndex {
     return this.foliageIndex.queryRect(rect);
   }
 
+  foliageInRectInto(rect: ZeusRect, result: IndexedFoliageInstance[]) {
+    return this.foliageIndex.queryRectInto(rect, result);
+  }
+
   foliageInCircle(position: { x: number; y: number }, radius: number) {
     return this.foliageIndex.queryCircle(position, radius);
+  }
+
+  foliageInCircleInto(position: { x: number; y: number }, radius: number, result: IndexedFoliageInstance[]) {
+    return this.foliageIndex.queryCircleInto(position, radius, result);
   }
 }
