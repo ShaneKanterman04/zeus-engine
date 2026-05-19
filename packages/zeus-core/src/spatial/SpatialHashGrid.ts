@@ -64,54 +64,86 @@ export class ZeusSpatialHashGrid<T extends ZeusSpatialItem> {
 
   queryRect(rect: ZeusSpatialQueryRect) {
     const result: T[] = [];
-    this.forEachRect(rect, (item) => {
-      result.push(item);
-    });
+    this.queryRectInto(rect, result);
+    return result;
+  }
+
+  queryRectInto(rect: ZeusSpatialQueryRect, result: T[]) {
+    this.forEachRect(rect, (item) => result.push(item));
     return result;
   }
 
   forEachRect(rect: ZeusSpatialQueryRect, visit: (item: T) => void) {
+    const bounds = this.cellBoundsForRect(rect);
+    if (bounds.minX === bounds.maxX && bounds.minY === bounds.maxY) {
+      this.forEachRectCell(`${bounds.minX}:${bounds.minY}`, rect, undefined, visit);
+      return;
+    }
     const visited = new Set<string>();
-    this.forEachCellKeyInRect(rect, (key) => {
-      const bucket = this.cells.get(key);
-      if (!bucket) return;
-      for (const id of bucket) {
-        if (visited.has(id)) continue;
-        const item = this.items.get(id);
-        if (!item) continue;
-        if (!circleIntersectsRect(item.position, item.radius, rect)) continue;
-        visited.add(id);
-        visit(item);
-      }
+    this.forEachCellKeyInBounds(bounds, (key) => {
+      this.forEachRectCell(key, rect, visited, visit);
     });
+  }
+
+  private forEachRectCell(key: string, rect: ZeusSpatialQueryRect, visited: Set<string> | undefined, visit: (item: T) => void) {
+    const bucket = this.cells.get(key);
+    if (!bucket) return;
+    for (const id of bucket) {
+      if (visited?.has(id)) continue;
+      const item = this.items.get(id);
+      if (!item) continue;
+      if (!circleIntersectsRect(item.position, item.radius, rect)) continue;
+      visited?.add(id);
+      visit(item);
+    }
   }
 
   queryCircle(position: Vec2, radius: number) {
     const result: T[] = [];
-    this.forEachCircle(position, radius, (item) => {
-      result.push(item);
-    });
+    this.queryCircleInto(position, radius, result);
+    return result;
+  }
+
+  queryCircleInto(position: Vec2, radius: number, result: T[]) {
+    this.forEachCircle(position, radius, (item) => result.push(item));
     return result;
   }
 
   forEachCircle(position: Vec2, radius: number, visit: (item: T) => void) {
-    const visited = new Set<string>();
     const radiusSquared = radius * radius;
-    this.forEachCellKeyInRect({ x: position.x - radius, y: position.y - radius, width: radius * 2, height: radius * 2 }, (key) => {
-      const bucket = this.cells.get(key);
-      if (!bucket) return;
-      for (const id of bucket) {
-        if (visited.has(id)) continue;
-        const item = this.items.get(id);
-        if (!item) continue;
-        const dx = item.position.x - position.x;
-        const dy = item.position.y - position.y;
-        const reach = radius + item.radius;
-        if (dx * dx + dy * dy > Math.max(radiusSquared, reach * reach)) continue;
-        visited.add(id);
-        visit(item);
-      }
+    const rect = { x: position.x - radius, y: position.y - radius, width: radius * 2, height: radius * 2 };
+    const bounds = this.cellBoundsForRect(rect);
+    if (bounds.minX === bounds.maxX && bounds.minY === bounds.maxY) {
+      this.forEachCircleCell(`${bounds.minX}:${bounds.minY}`, position, radius, radiusSquared, undefined, visit);
+      return;
+    }
+    const visited = new Set<string>();
+    this.forEachCellKeyInBounds(bounds, (key) => {
+      this.forEachCircleCell(key, position, radius, radiusSquared, visited, visit);
     });
+  }
+
+  private forEachCircleCell(
+    key: string,
+    position: Vec2,
+    radius: number,
+    radiusSquared: number,
+    visited: Set<string> | undefined,
+    visit: (item: T) => void,
+  ) {
+    const bucket = this.cells.get(key);
+    if (!bucket) return;
+    for (const id of bucket) {
+      if (visited?.has(id)) continue;
+      const item = this.items.get(id);
+      if (!item) continue;
+      const dx = item.position.x - position.x;
+      const dy = item.position.y - position.y;
+      const reach = radius + item.radius;
+      if (dx * dx + dy * dy > Math.max(radiusSquared, reach * reach)) continue;
+      visited?.add(id);
+      visit(item);
+    }
   }
 
   nearest(position: Vec2, radius: number, predicate: (item: T) => boolean = () => true) {
@@ -141,13 +173,21 @@ export class ZeusSpatialHashGrid<T extends ZeusSpatialItem> {
   }
 
   private forEachCellKeyInRect(rect: ZeusSpatialQueryRect, visit: (key: string) => void) {
+    this.forEachCellKeyInBounds(this.cellBoundsForRect(rect), visit);
+  }
+
+  private forEachCellKeyInBounds(bounds: { minX: number; minY: number; maxX: number; maxY: number }, visit: (key: string) => void) {
+    for (let y = bounds.minY; y <= bounds.maxY; y += 1) {
+      for (let x = bounds.minX; x <= bounds.maxX; x += 1) visit(`${x}:${y}`);
+    }
+  }
+
+  private cellBoundsForRect(rect: ZeusSpatialQueryRect) {
     const minX = Math.floor(rect.x / this.cellSize);
     const minY = Math.floor(rect.y / this.cellSize);
     const maxX = Math.floor((rect.x + rect.width) / this.cellSize);
     const maxY = Math.floor((rect.y + rect.height) / this.cellSize);
-    for (let y = minY; y <= maxY; y += 1) {
-      for (let x = minX; x <= maxX; x += 1) visit(`${x}:${y}`);
-    }
+    return { minX, minY, maxX, maxY };
   }
 }
 

@@ -59,6 +59,38 @@ describe("Zeus performance benchmarks", () => {
     expect(output.elapsedMs).toBeLessThan(5_000);
   });
 
+  it("tracks spatial hash caller-provided result throughput", () => {
+    const grid = new ZeusSpatialHashGrid(96);
+    for (let index = 0; index < 12_000; index += 1) {
+      grid.set({
+        id: `entity-${index}`,
+        position: {
+          x: (index % 160) * 18,
+          y: Math.floor(index / 160) * 18,
+        },
+        radius: 10 + (index % 5),
+      });
+    }
+
+    const rectResult: Array<{ id: string; position: { x: number; y: number }; radius: number }> = [];
+    const circleResult: Array<{ id: string; position: { x: number; y: number }; radius: number }> = [];
+    const output = measure("spatial-query-into", 5_000, (iterations) => {
+      let result = 0;
+      for (let index = 0; index < iterations; index += 1) {
+        const x = (index % 120) * 19;
+        const y = (index % 80) * 23;
+        rectResult.length = 0;
+        circleResult.length = 0;
+        result += grid.queryRectInto({ x, y, width: 180, height: 140 }, rectResult).length;
+        result += grid.queryCircleInto({ x: x + 90, y: y + 70 }, 96, circleResult).length;
+      }
+      return result;
+    });
+
+    expect(output.result).toBeGreaterThan(0);
+    expect(output.elapsedMs).toBeLessThan(5_000);
+  });
+
   it("tracks borrowed component store throughput", () => {
     const store = new ComponentStore<{ x: number; y: number; radius: number; enabled: boolean }>();
     for (let index = 0; index < 10_000; index += 1) {
