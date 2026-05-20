@@ -5,6 +5,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
+    "zeus": "./dist/cli/zeus.js",
     "zeus-tools": "./dist/cli/zeus-tools.js"
   },
   "exports": {
