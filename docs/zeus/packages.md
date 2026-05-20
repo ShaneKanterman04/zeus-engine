@@ -161,7 +161,10 @@ Package binaries:
 zeus dev
 zeus dev --script <npm-script>
 zeus dev --dry-run
+zeus scenario list
+zeus scenario validate
+zeus scenario show <id>
 zeus-tools generate-pixels --config <config.mjs>
 ```
 
-`zeus dev` is the current project workflow command. Planned validation commands are documented in `tooling-plan.md` as future work, not current CLI behavior.
+`zeus dev` is the current project workflow command. `zeus scenario` commands list, validate, and inspect project-owned scenario files. Planned content validation commands are documented in `tooling-plan.md` as future work, not current CLI behavior.

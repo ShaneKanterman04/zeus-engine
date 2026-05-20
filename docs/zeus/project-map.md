@@ -6,7 +6,7 @@ Status: Agent navigation map
 
 ## Start Here
 
-Use this map when you need to find the right Zeus Engine area quickly. For public exports, read `docs/zeus/packages.md`. For architecture intent, read `docs/zeus/engine-plan.md`. For current tooling status, read `docs/zeus/tooling-plan.md`.
+Use this map when you need to find the right Zeus Engine area quickly. For public exports, read `docs/zeus/packages.md`. For scenarios, read `docs/zeus/scenarios.md`. For architecture intent, read `docs/zeus/engine-plan.md`. For current tooling status, read `docs/zeus/tooling-plan.md`.
 
 ## High-Level Layout
 
@@ -43,6 +43,7 @@ Use this map when you need to find the right Zeus Engine area quickly. For publi
 | Change package exports | `packages/*/src/index.ts`, `packages/*/package.json`, `scripts/check-package-exports.mjs` | `npm run build && npm run check:exports` |
 | Change WebSocket or room behavior | `packages/zeus-net/src`, `tests/web-socket-room.test.ts`, `tests/net-browser-boundary.test.ts` | `npm test -- tests/web-socket-room.test.ts tests/net-browser-boundary.test.ts` |
 | Change `zeus dev` | `packages/zeus-tools/src/cli/zeus.ts`, `packages/zeus-tools/src/cli/zeus-dev.ts`, `tests/zeus-cli.test.ts` | `npm test -- tests/zeus-cli.test.ts` |
+| Change scenarios | `packages/zeus-tools/src/scenarios`, `packages/zeus-tools/src/cli/zeus-scenario.ts`, `tests/scenario-runner.test.ts`, `docs/zeus/scenarios.md` | `npm test -- tests/scenario-runner.test.ts` |
 | Change Pixi rendering helpers | `packages/zeus-renderer-pixi/src`, `tests/renderer-pixi-static-chunks.test.ts` | `npm test -- tests/renderer-pixi-static-chunks.test.ts` |
 | Change world layers/chunks | `packages/zeus-core/src/worldLayers.ts`, `packages/zeus-core/src/chunks`, `packages/zeus-tools/src/world`, `tests/world-layers.test.ts`, `tests/chunk-streamer.test.ts` | `npm test -- tests/world-layers.test.ts tests/chunk-streamer.test.ts` |
 | Change editor app | `apps/zeus-editor/src`, `apps/zeus-editor/README.md`, `scripts/editor-cmake.mjs` | `npm run editor:build` when Qt is available |
@@ -72,5 +73,8 @@ zeus dev
 npx --no-install zeus dev
 zeus dev --script dev:local
 zeus dev --dry-run
+zeus scenario list
+zeus scenario validate
+zeus scenario show <id>
 zeus-tools generate-pixels --config path/to/config.mjs
 ```
