@@ -2,13 +2,14 @@
 
 Native C++/Qt visual editor for Zeus projects.
 
-V1 is a read-only remote editor:
+V1 includes a remote project browser, embedded terminal, project preview, and Asset Studio workflow:
 
 - Browse a project over SSH.
 - Preview remote text and image files.
 - Launch the project dev server over SSH.
 - Open the running project in an embedded Qt WebEngine viewport through a local SSH tunnel.
 - Use an embedded terminal tab that starts in the remote project directory.
+- Run Asset Studio workflows that can generate, promote, pack, and validate project assets.
 
 ## Prerequisites
 
@@ -17,6 +18,7 @@ V1 is a read-only remote editor:
 - Qt 6.5+ with Widgets, WebEngineWidgets, and Network
 - OpenSSH client tools available on `PATH`
 - Working key or agent auth for the target server
+- Codex CLI on the remote host for Asset Studio generation workflows
 
 ## Run
 
@@ -50,7 +52,9 @@ dist/zeus-editor
 
 ## Scope
 
-V1 does not edit files, run migrations, or provide scene editing. The file explorer and preview are intentionally read-only.
+The file explorer and preview are read-only. Asset Studio is not read-only: it can run remote generation commands, copy promoted assets, write promotion metadata, and run project validation/packing commands. V1 still does not provide scene editing or migrations.
+
+Some default Asset Studio paths and scripts are currently tuned for Last Hearth. That is allowed at the app/profile layer, but reusable engine packages under `packages/*` must remain game-agnostic.
 
 ## Update
 

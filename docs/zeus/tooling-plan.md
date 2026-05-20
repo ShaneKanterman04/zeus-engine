@@ -91,7 +91,22 @@ Validation targets:
 - Weather definitions
 - Localization keys later
 
-Commands planned:
+Implemented commands:
+
+```text
+zeus dev
+zeus dev --script <npm-script>
+zeus dev --dry-run
+zeus-tools generate-pixels --config <config.mjs>
+```
+
+Project-level validation currently lives in game repos. Last Hearth uses:
+
+```text
+npm run validate:content
+```
+
+Future Zeus validation commands:
 
 ```text
 zeus validate-content

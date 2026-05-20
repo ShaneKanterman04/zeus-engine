@@ -2,6 +2,8 @@
 
 This repo is the reusable Zeus engine/tooling layer used by `/home/shane/Projects/last-hearth-game`.
 
+For fast navigation, read `docs/zeus/project-map.md` before searching broadly. It maps package ownership, common task entry points, tests, docs, scripts, and command gates.
+
 The dependency direction must remain:
 
 ```text
@@ -27,6 +29,8 @@ cd /home/shane/Projects/zeus-engine
 npm run build
 npm run check:exports
 npm run typecheck
+npm test
+npm run test:coverage
 ```
 
 When changing engine behavior for a game feature, also verify the game:

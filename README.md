@@ -2,7 +2,7 @@
 
 Zeus Engine is a modular, TypeScript-first game engine and tooling stack for building browser games.
 
-It is published as a monorepo of focused packages (core runtime, rendering, input, assets, audio, AI helpers, networking, debugging, and tools) so projects can depend on only what they need.
+It is organized as a workspace monorepo of focused packages (core runtime, rendering, input, assets, audio, AI helpers, networking, debugging, and tools) so projects can depend on only what they need.
 
 > Design goal: reusable engine packages with clear package boundaries, consumed by game projects through `@zeus/*` imports.
 
@@ -81,6 +81,13 @@ npm run check:exports
 npm run typecheck
 ```
 
+### Test
+
+```bash
+npm test
+npm run test:coverage
+```
+
 ## Development Workflow
 
 Use the root scripts while developing to keep all workspace packages aligned:
@@ -89,9 +96,52 @@ Use the root scripts while developing to keep all workspace packages aligned:
 npm run build
 npm run check:exports
 npm run typecheck
+npm test
 ```
 
 If you are developing Zeus Engine alongside a game project, rebuild the engine and then run the game’s verification suite.
+
+## Zeus CLI
+
+`@zeus/tools` provides two command-line binaries after the package is built and installed into a Zeus game project:
+
+- `zeus` for project workflow commands.
+- `zeus-tools` for lower-level asset/content tools.
+
+Current `zeus` command:
+
+```bash
+zeus dev
+zeus dev --script dev:local
+zeus dev --dry-run
+```
+
+If `zeus` is not on your shell `PATH`, run the local project binary instead:
+
+```bash
+npx --no-install zeus dev
+```
+
+`zeus dev` finds the nearest `package.json` that depends on an `@zeus/*` package, chooses `zeus.devScript` when configured or falls back to `dev`, `dev:lan`, then `dev:local`, stops the prior recorded dev server for that project, stops listeners on configured `zeus.devPorts`, and runs the selected npm script.
+
+Project configuration example:
+
+```json
+{
+  "zeus": {
+    "devScript": "dev",
+    "devPorts": [5173, 8787]
+  }
+}
+```
+
+Dev server records are stored under `~/.zeus/dev-servers` by default. Set `ZEUS_STATE_DIR` to use a different state directory.
+
+Current `zeus-tools` command:
+
+```bash
+zeus-tools generate-pixels --config path/to/config.mjs
+```
 
 ## Example Imports
 
@@ -110,9 +160,11 @@ import { ZeusWebSocketRoomClient } from '@zeus/net/web-socket-room-client';
 import { ZeusWebSocketRoomServer } from '@zeus/net/web-socket-room-server';
 ```
 
+The root `@zeus/net` entry is browser-safe and exports the WebSocket client. The Node-only WebSocket room server is intentionally available through the `@zeus/net/web-socket-room-server` subpath.
+
 ## Docs
 
-See engine notes and planning docs in `docs/zeus/`.
+See engine notes, package reference, and planning docs in `docs/zeus/`.
 
 ## Status
 
