@@ -97,6 +97,9 @@ Implemented commands:
 zeus dev
 zeus dev --script <npm-script>
 zeus dev --dry-run
+zeus scenario list
+zeus scenario validate
+zeus scenario show <id>
 zeus-tools generate-pixels --config <config.mjs>
 ```
 

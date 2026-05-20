@@ -2,6 +2,7 @@
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { runZeusDev } from "./zeus-dev.js";
+import { runZeusScenarioCli } from "./zeus-scenario.js";
 
 type CliIO = {
   cwd?: string;
@@ -23,6 +24,7 @@ export async function runZeusCli(args = process.argv.slice(2), io: CliIO = {}) {
       const dryRun = commandArgs.includes("--dry-run");
       return await runZeusDev({ cwd: io.cwd, script, dryRun, stdout });
     }
+    if (command === "scenario") return await runZeusScenarioCli(commandArgs, { cwd: io.cwd, stdout });
     throw new Error(`Unknown zeus command: ${command ?? ""}`);
   } catch (error) {
     stderr.error(error instanceof Error ? error.message : String(error));
@@ -42,6 +44,7 @@ function helpText() {
     "",
     "Commands:",
     "  dev [--script <npm-script>] [--dry-run]  Kill this project's prior dev server and run its Zeus dev script",
+    "  scenario <command> [options]                 List, validate, and show project scenarios",
   ].join("\n");
 }
 

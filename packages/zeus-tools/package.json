@@ -12,6 +12,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./scenarios": {
+      "types": "./dist/scenarios/index.d.ts",
+      "import": "./dist/scenarios/index.js"
     }
   },
   "dependencies": {

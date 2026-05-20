@@ -54,6 +54,17 @@ export { generateFoliagePlacementResult, generateFoliagePlacements } from "./fol
 export { validateChunkMap } from "./world/ChunkMapValidation.js";
 export { countRouteClearanceViolations, validateWorldLayers } from "./world/WorldLayerValidation.js";
 export { createWorldReviewReport } from "./world/WorldReviewReport.js";
+export {
+  createZeusScenarioRegistry,
+  loadZeusScenarioRegistry,
+} from "./scenarios/ScenarioRegistry.js";
+export {
+  evaluateZeusScenarioAssertions,
+  runZeusScenario,
+  validateZeusScenario,
+  validateZeusScenarioManifest,
+  valueAtPath,
+} from "./scenarios/index.js";
 export type {
   ZeusFoliagePlacementInstance,
   ZeusFoliagePlacementOptions,
@@ -66,3 +77,18 @@ export type {
 export type { ZeusChunkMapValidationChunk, ZeusChunkMapValidationOptions } from "./world/ChunkMapValidation.js";
 export type { ZeusWorldLayerValidationOptions, ZeusWorldLayerValidationResult } from "./world/WorldLayerValidation.js";
 export type { ZeusWorldReviewReport, ZeusWorldReviewReportOptions } from "./world/WorldReviewReport.js";
+export type {
+  ZeusScenario,
+  ZeusScenarioAdapter,
+  ZeusScenarioAssertion,
+  ZeusScenarioAssertionOperator,
+  ZeusScenarioAssertionResult,
+  ZeusScenarioContentRefs,
+  ZeusScenarioManifest,
+  ZeusScenarioRunOptions,
+  ZeusScenarioRunResult,
+  ZeusScenarioStep,
+  ZeusScenarioValidationOptions,
+  ZeusScenarioValidationResult,
+} from "./scenarios/index.js";
+export type { ZeusScenarioRegistry, ZeusScenarioRegistryOptions } from "./scenarios/ScenarioRegistry.js";

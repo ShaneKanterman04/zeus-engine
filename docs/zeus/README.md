@@ -44,6 +44,7 @@ Reusable package code must stay game-agnostic. App-level tooling such as `apps/z
 | --- | --- |
 | `project-map.md` | Agent navigation map for package ownership, common task entry points, tests, scripts, and command gates. |
 | `packages.md` | Current public package exports and import boundaries. |
+| `scenarios.md` | Scenario schema, registry, CLI, adapter, assertions, and automation baseline. |
 | `engine-plan.md` | Runtime, renderer, simulation, input, audio, debug, and engine architecture. |
 | `tooling-plan.md` | Editors, importers, validators, debug tools, and build tooling. |
 | `content-pipeline.md` | Zeus asset/content pipeline with GPT-assisted art support. |
